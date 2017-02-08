@@ -20,9 +20,11 @@
     "url": "https://github.com/oliversturm/devextreme-query-mongodb/issues"
   },
   "homepage": "https://github.com/oliversturm/devextreme-query-mongodb#readme",
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
-    "eslint": "^3.15.0"
+    "chai": "^3.5.0",
+    "eslint": "^3.15.0",
+    "mocha": "^3.2.0",
+    "mongodb": "^2.2.22"
   }
 }
