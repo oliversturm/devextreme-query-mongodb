@@ -1,33 +1,38 @@
 {
-  "name": "devextreme-query-mongodb",
-  "version": "1.0.1",
-  "description": "Querying a MongoDB collection using DevExtreme data store load parameters",
-  "main": "index.js",
-  "scripts": {
-    "test": "make test"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/oliversturm/devextreme-query-mongodb.git"
-  },
-  "keywords": [
-    "DevExtreme",
-    "MongoDB"
-  ],
-  "author": "Oliver Sturm <oliver@oliversturm.com>",
-  "license": "SEE LICENSE IN LICENSE",
-  "bugs": {
-    "url": "https://github.com/oliversturm/devextreme-query-mongodb/issues"
-  },
-  "homepage": "https://github.com/oliversturm/devextreme-query-mongodb#readme",
-  "engines": {
-    "node": ">=7.3"
-  },
-  "dependencies": {},
-  "devDependencies": {
-    "chai": "^3.5.0",
-    "eslint": "^3.15.0",
-    "mocha": "^3.2.0",
-    "mongodb": "^2.2.22"
-  }
+    "name": "devextreme-query-mongodb",
+    "version": "1.0.1",
+    "description": "Querying a MongoDB collection using DevExtreme data store load parameters",
+    "main": "index.js",
+    "files": [
+	"index.js",
+	"LICENSE",
+	"README.md"
+    ],
+    "scripts": {
+	"test": "make test"
+    },
+    "repository": {
+	"type": "git",
+	"url": "git+https://github.com/oliversturm/devextreme-query-mongodb.git"
+    },
+    "keywords": [
+	"DevExtreme",
+	"MongoDB"
+    ],
+    "author": "Oliver Sturm <oliver@oliversturm.com>",
+    "license": "SEE LICENSE IN LICENSE",
+    "bugs": {
+	"url": "https://github.com/oliversturm/devextreme-query-mongodb/issues"
+    },
+    "homepage": "https://github.com/oliversturm/devextreme-query-mongodb#readme",
+    "engines": {
+	"node": ">=7.3"
+    },
+    "dependencies": {},
+    "devDependencies": {
+	"chai": "^3.5.0",
+	"eslint": "^3.15.0",
+	"mocha": "^3.2.0",
+	"mongodb": "^2.2.22"
+    }
 }
