@@ -14,27 +14,26 @@ function db(f) {
 }
 
 function testQueryValues(tdone, loadOptions, test) {
-    function addDays(date, days) {
-	date.setDate(date.getDate() + days);
-	return date;
+    function date(start, addDays) {
+	return new Date(start + (addDays * (24*60*60*1000)));
     }
     
     db(db => {
 	db.dropDatabase((err, res) => {
 	    const values = db.collection("values");
-	    const currentYear = new Date().getFullYear();
-	    const currentYearStart = () => new Date(currentYear, 0, 1);
-	    const nextYearStart = () => new Date(currentYear + 1, 0, 1);
+	    const currentYear = 2017;
+	    const currentYearStart = (new Date(currentYear, 0, 1)).valueOf();
+	    const nextYearStart = (new Date(currentYear + 1, 0, 1)).valueOf();
 		
 	    Promise.all(
-		Array.from(new Array(TESTRECORD_COUNT), (v, i) => i + 1).map(
+		Array.from(new Array(TESTRECORD_COUNT), (v, i) => i).map(
 		    n => values.insertOne({
-			date1: addDays(currentYearStart(), n),
-			date2: addDays(nextYearStart(), n),
-			int1: n % 10,
-			int2: n % 5,
-			string: "Item " + n
-		    })
+			    date1: date(currentYearStart, n),
+			    date2: date(nextYearStart, n),
+			    int1: n % 10,
+			    int2: n % 5,
+			    string: "Item " + n
+			})
 		)
 	    ).then(async () => {
 		try {
@@ -764,6 +763,104 @@ describe("query-values", function() {
 		expect(res.data[1].summary, "group2.summary").to.have.lengthOf(2);
 		expect(res.data[1].summary[0], "group2.sum(int1)").to.eql(60);
 		expect(res.data[1].summary[1], "group2.max(int2)").to.eql(1);
+	    });
+	});
+
+	it("list should group with groupInterval quarter", function(tdone) {
+	    testQueryValues(tdone, {
+		group: [
+		    {
+			selector: "date1",
+			groupInterval: "quarter"
+		    }
+		],
+		requireTotalCount: true,
+		requireGroupCount: true
+	    }, function(res) {
+		expect(res.totalCount, "totalCount").to.eql(TESTRECORD_COUNT);
+		expect(res.groupCount, "groupCount").to.eql(2);
+		
+		expect(res.data, "res.data").to.be.instanceof(Array);
+		expect(res.data, "group list length").to.have.lengthOf(2);
+
+		expect(res.data[0].key, "group 1.key").to.not.be.undefined;
+		expect(res.data[0].items, `group 1.items`).to.be.null;
+		expect(res.data[0].count, `group 1.count`).to.eql(90);
+		expect(res.data[1].key, "group 2.key").to.not.be.undefined;
+		expect(res.data[1].items, `group 2.items`).to.be.null;
+		expect(res.data[1].count, `group 2.count`).to.eql(10);
+		
+	    });
+	});
+
+	it("list should group with groupInterval month", function(tdone) {
+	    testQueryValues(tdone, {
+		group: [
+		    {
+			selector: "date1",
+			groupInterval: "month"
+		    }
+		],
+		requireTotalCount: true,
+		requireGroupCount: true
+	    }, function(res) {
+		expect(res.totalCount, "totalCount").to.eql(TESTRECORD_COUNT);
+		expect(res.groupCount, "groupCount").to.eql(4);
+		
+		expect(res.data, "res.data").to.be.instanceof(Array);
+		expect(res.data, "group list length").to.have.lengthOf(4);
+
+		expect(res.data[0].key, "group 1.key").to.eql(1);
+		expect(res.data[0].items, `group 1.items`).to.be.null;
+		expect(res.data[0].count, `group 1.count`).to.eql(31);
+		expect(res.data[1].key, "group 2.key").to.eql(2);
+		expect(res.data[1].items, `group 2.items`).to.be.null;
+		expect(res.data[1].count, `group 2.count`).to.eql(28);
+		expect(res.data[2].key, "group 3.key").to.eql(3);
+		expect(res.data[2].items, `group 3.items`).to.be.null;
+		expect(res.data[2].count, `group 3.count`).to.eql(31);
+		expect(res.data[3].key, "group 4.key").to.eql(4);
+		expect(res.data[3].items, `group 4.items`).to.be.null;
+		expect(res.data[3].count, `group 4.count`).to.eql(10);
+		
+	    });
+	});
+
+	it("list should group with groupInterval dayOfWeek", function(tdone) {
+	    testQueryValues(tdone, {
+		group: [
+		    {
+			selector: "date1",
+			groupInterval: "dayOfWeek"
+		    }
+		],
+		requireTotalCount: true,
+		requireGroupCount: true
+	    }, function(res) {
+		expect(res.totalCount, "totalCount").to.eql(TESTRECORD_COUNT);
+		expect(res.groupCount, "groupCount").to.eql(7);
+		
+		expect(res.data, "res.data").to.be.instanceof(Array);
+		expect(res.data, "group list length").to.have.lengthOf(7);		
+	    });
+	});
+
+	it("list should group with groupInterval 2", function(tdone) {
+	    testQueryValues(tdone, {
+		group: [
+		    {
+			selector: "int1",
+			groupInterval: 2
+		    }
+		],
+		requireTotalCount: true,
+		requireGroupCount: true
+	    }, function(res) {
+		expect(res.totalCount, "totalCount").to.eql(TESTRECORD_COUNT);
+		expect(res.groupCount, "groupCount").to.eql(5);
+		
+		expect(res.data, "res.data").to.be.instanceof(Array);
+		expect(res.data, "group list length").to.have.lengthOf(5);
 	    });
 	});
 
