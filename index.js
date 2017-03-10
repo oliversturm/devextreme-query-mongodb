@@ -528,6 +528,8 @@ function createContext(contextOptions, loadOptions) {
 			const summaryQueryPipeline = filterPipeline.concat(
 			    matchPipeline.concat(this.createMatchPipeline(group.selector, groupDataItem.key)),
 			    summaryPipeline);
+
+			console.log("Using summary query pipeline: ", JSON.stringify(summaryQueryPipeline, null, 2));
 			
 			this.populateSummaryResults(groupDataItem, loadOptions.groupSummary,
 					       (await collection.aggregate(summaryQueryPipeline).toArray())[0]);
