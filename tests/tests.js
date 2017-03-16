@@ -864,5 +864,54 @@ describe("query-values", function() {
 	    });
 	});
 
+	it("list should group with groupInterval quarter and summaries", function(tdone) {
+	    testQueryValues(tdone, {
+		group: [
+		    {
+			selector: "date1",
+			groupInterval: "quarter"
+		    }
+		],
+		groupSummary: [
+		    {
+			selector: "int1",
+			summaryType: "count"
+		    }
+		],
+		totalSummary: [
+		    {
+			selector: "int1",
+			summaryType: "count"
+		    }
+		],
+		requireTotalCount: true,
+		requireGroupCount: true
+	    }, function(res) {
+		expect(res.totalCount, "totalCount").to.eql(TESTRECORD_COUNT);
+		expect(res.groupCount, "groupCount").to.eql(2);
+		
+		expect(res.data, "res.data").to.be.instanceof(Array);
+		expect(res.data, "group list length").to.have.lengthOf(2);
+
+		expect(res.summary, "res.summary").to.be.instanceof(Array);
+		expect(res.summary, "res.summary length").to.have.lengthOf(1);
+		
+
+		expect(res.data[0].key, "group 1.key").to.not.be.undefined;
+		expect(res.data[0].items, `group 1.items`).to.be.null;
+		expect(res.data[0].count, `group 1.count`).to.eql(90);
+		expect(res.data[0].summary, "group 1 summary").to.be.instanceof(Array);
+		expect(res.data[0].summary, "group 1 summary length").to.have.lengthOf(1);
+		
+		expect(res.data[1].key, "group 2.key").to.not.be.undefined;
+		expect(res.data[1].items, `group 2.items`).to.be.null;
+		expect(res.data[1].count, `group 2.count`).to.eql(10);
+		expect(res.data[1].summary, "group 2 summary").to.be.instanceof(Array);
+		expect(res.data[1].summary, "group 2 summary length").to.have.lengthOf(1);
+		
+	    });
+	});
+
+
     });
 });

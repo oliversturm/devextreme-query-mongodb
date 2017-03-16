@@ -23,30 +23,18 @@ function createContext(contextOptions, loadOptions) {
 	    };
 	},
 
-	createGroupStagePipeline: function(selector, groupInterval, countingSeparately, includeDataItems, itemProjection) {
-	    const wrapGroup = idVal => {
-		let result = {
-		    $group: {
-			// must use _id at this point for the group key
-			_id: idVal
-		    }
+	createGroupFieldName: groupIndex => "_group_key_" + groupIndex,
+	
+	createGroupKeyPipeline: function(selector, groupInterval, groupIndex) {
+	    const wrapGroupKey = keyExpr => {
+		let field = {};
+		field[this.createGroupFieldName(groupIndex)] = keyExpr;
+		
+		return {
+		    $addFields: field
 		};
-		if (!countingSeparately) {
-		    // this method of counting results in the number of data items in the group
-		    // if the group has sub-groups, it can't be used
-		    result.$group.count = {
-			$sum: 1
-		    };
-		}
-		if (includeDataItems) {
-    		    // include items directly if we're expected to do so, and if this is the
-    		    // most deeply nested group in case there are several
-		    result.$group.items = {
-    			$push: itemProjection
-    		    };
-		}
-		return result;
 	    };
+
 	    const prefix = s => "$" + s;
 
 	    // much more complicated than it should be because braindead mongo
@@ -67,20 +55,26 @@ function createContext(contextOptions, loadOptions) {
 		    divisor
 		]
 	    });
-	    
+
+	    const pipe = (...args) => {
+		let result = Array.from(args);
+		result.groupIndex = groupIndex;
+		return result;
+	    };
+
 	    if (groupInterval) {
 		const numericInterval = parseInt(Number(groupInterval));
 		if (numericInterval) {
-		    return [wrapGroup(divInt(prefix(selector), numericInterval))];
+		    return pipe(wrapGroupKey(divInt(prefix(selector), numericInterval)));
 		}
 		else {
 		    switch(groupInterval) {
 		    case "year":
-			return [wrapGroup({
+			return pipe(wrapGroupKey({
 			    $year: prefix(selector)
-			})];
+			}));
 		    case "quarter":
-			return [
+			return pipe(
 			    {   // need to pre-calculate month(date)+2, because the divInt logic
 				// will reuse the field and we don't want to calculate it multiple
 				// times
@@ -95,18 +89,18 @@ function createContext(contextOptions, loadOptions) {
 				    }
 				}
 			    },
-			    wrapGroup(divInt("$_mp2_", 3))
-			];
+			    wrapGroupKey(divInt("$_mp2_", 3))
+			);
 		    case "month":
-			return [wrapGroup({
+			return pipe(wrapGroupKey({
 			    $month: prefix(selector)
-			})];
+			}));
 		    case "day":
-			return [wrapGroup({
+			return pipe(wrapGroupKey({
 			    $dayOfMonth: prefix(selector)
-			})];
+			}));
 		    case "dayOfWeek":
-			return [wrapGroup(
+			return pipe(wrapGroupKey(
 			    {
 				$subtract: [
 				    {
@@ -114,31 +108,56 @@ function createContext(contextOptions, loadOptions) {
 				    },
 				    1
 				]
-			    })];
+			    }));
 		    case "hour":
-			return [wrapGroup({
+			return pipe(wrapGroupKey({
 			    $hour: prefix(selector)
-			})];
+			}));
 		    case "minute":
-			return [wrapGroup({
+			return pipe(wrapGroupKey({
 			    $minute: prefix(selector)
-			})];
+			}));
 		    case "second":
-			return [wrapGroup({
+			return pipe(wrapGroupKey({
 			    $second: prefix(selector)
-			})];
+			}));
 		    default:
 			// unknown grouping operator, ignoring
-			return [wrapGroup(prefix(selector))];
+			return pipe(wrapGroupKey(prefix(selector)));
 		    }		    
 		}
 	    }
 	    else {
-		return [wrapGroup(prefix(selector))];
+		return pipe(wrapGroupKey(prefix(selector)));
 	    }
 	},
+	
+	createGroupStagePipeline: function(countingSeparately, includeDataItems, itemProjection, groupKeyPipeline) {
+	    let result = {
+		$group: {
+		    // must use _id at this point for the group key
+		    _id: "$" + this.createGroupFieldName(groupKeyPipeline.groupIndex)
+		}
+	    };
+	    if (!countingSeparately) {
+		// this method of counting results in the number of data items in the group
+		// if the group has sub-groups, it can't be used
+		result.$group.count = {
+		    $sum: 1
+		};
+	    }
+	    if (includeDataItems) {
+    		// include items directly if we're expected to do so, and if this is the
+    		// most deeply nested group in case there are several
+		result.$group.items = {
+    		    $push: itemProjection
+    		};
+	    }
+	    
+	    return groupKeyPipeline.concat([result]);
+	},
 
-	createGroupingPipeline: function(selector, desc, groupInterval, includeDataItems, countingSeparately, itemProjection="$$CURRENT") {
+	createGroupingPipeline: function(desc, includeDataItems, countingSeparately, groupKeyPipeline, itemProjection="$$CURRENT") {
 	    let projectStage = {
     		$project: {
     		    // rename _id to key
@@ -146,17 +165,15 @@ function createContext(contextOptions, loadOptions) {
     		    key: "$_id"
     		}
     	    };
+	    let sortStage = {
+		$sort: {
+		    key: desc ? -1 : 1
+		}
+	    };	    
 	    
 	    let pipeline =
-		    this.createGroupStagePipeline(selector, groupInterval, countingSeparately, includeDataItems, itemProjection).
-		    concat([
-			projectStage,
-			{
-			    $sort: {
-				key: desc ? -1 : 1
-			    }
-			}
-		    ]);
+		    this.createGroupStagePipeline(countingSeparately, includeDataItems, itemProjection, groupKeyPipeline).
+		    concat([ projectStage, sortStage ]);
 
 	    if (!countingSeparately) {
 		// this method of counting results in the number of data items in the group
@@ -452,14 +469,16 @@ function createContext(contextOptions, loadOptions) {
 	    }
 	},
 
-	queryGroupData: async function (collection, selector, desc, groupInterval, includeDataItems, countSeparately, itemProjection,
-			      sortPipeline, filterPipeline, skipTakePipeline, matchPipeline) {
+	queryGroupData: async function (collection, desc, includeDataItems, countSeparately, itemProjection,
+					groupKeyPipeline, sortPipeline, filterPipeline, skipTakePipeline, matchPipeline) {
 	    const pipeline = sortPipeline.concat( // sort pipeline first, apparently that enables it to use indexes
 		filterPipeline,
 		matchPipeline,
-		this.createGroupingPipeline(selector, desc, groupInterval, includeDataItems, countSeparately, itemProjection),
+		this.createGroupingPipeline(desc, includeDataItems, countSeparately, groupKeyPipeline, itemProjection),
 		skipTakePipeline
 	    );
+
+	    //console.log("QueryGroupData pipeline: ", JSON.stringify(pipeline, null, 2));
 	    
 	    const groupData = await collection.aggregate(pipeline).toArray();
 	    if (includeDataItems) {
@@ -481,10 +500,13 @@ function createContext(contextOptions, loadOptions) {
 	    // always included in the result, whether or not the group is marked isExpanded. 
 	    const subGroupsRequired = (!lastGroup); // && group.isExpanded;
 	    const summariesRequired = loadOptions.groupSummary && loadOptions.groupSummary.length > 0;
+
+	    const groupKeyPipeline = this.createGroupKeyPipeline(group.selector, group.groupInterval, groupIndex);
 	    
-	    const groupData = await this.queryGroupData(collection, group.selector, group.desc, group.groupInterval,
+	    const groupData = await this.queryGroupData(collection, group.desc,
 							itemDataRequired, separateCountRequired,
 							this.createSelectProjectExpression(loadOptions.select, true),
+							groupKeyPipeline,
 							itemDataRequired ? this.createSortPipeline(loadOptions.sort) : [],
 							filterPipeline, skipTakePipeline, matchPipeline);
 	    if (subGroupsRequired) {
@@ -495,7 +517,11 @@ function createContext(contextOptions, loadOptions) {
 			[], // skip/take doesn't apply on lower levels - correct?
 			summaryPipeline, // unmodified
 			// matchPipeline modified to filter down into group level
-			matchPipeline.concat(this.createMatchPipeline(group.selector, groupDataItem.key)));
+			matchPipeline.concat(
+			    // not completely clean to include this in the match pipeline, but the field
+			    // added in the groupKeyPipeline is required specifically for the following match
+			    groupKeyPipeline,
+			    this.createMatchPipeline(this.createGroupFieldName(groupIndex), groupDataItem.key)));
 		    groupDataItem.count = groupDataItem.items.length;
 		}
 	    }
@@ -511,10 +537,12 @@ function createContext(contextOptions, loadOptions) {
 		// items, count represents a value that must not be calculated using the data items.
 
 		const nextGroup = loadOptions.group[groupIndex + 1];
+		const nextGroupKeyPipeline = this.createGroupKeyPipeline(nextGroup.selector, nextGroup.groupInterval, groupIndex + 1);
 		for (const groupDataItem of groupData) {
 		    const pipeline = filterPipeline.concat(
-			matchPipeline.concat(this.createMatchPipeline(group.selector, groupDataItem.key)),
-			this.createGroupingPipeline(nextGroup.selector, nextGroup.desc, nextGroup.groupInterval, false, true),
+			groupKeyPipeline,
+			matchPipeline.concat(this.createMatchPipeline(this.createGroupFieldName(groupIndex), groupDataItem.key)),
+			this.createGroupingPipeline(nextGroup.desc, false, true, nextGroupKeyPipeline),
 			this.createCountPipeline()
 		    );
 		    groupDataItem.count = await this.getCount(collection, pipeline);
@@ -526,8 +554,11 @@ function createContext(contextOptions, loadOptions) {
 
 		    await runSummaryQuery(async () => {
 			const summaryQueryPipeline = filterPipeline.concat(
-			    matchPipeline.concat(this.createMatchPipeline(group.selector, groupDataItem.key)),
+			    groupKeyPipeline,
+			    matchPipeline.concat(this.createMatchPipeline(this.createGroupFieldName(groupIndex), groupDataItem.key)),
 			    summaryPipeline);
+
+			//console.log("Using summary query pipeline: ", JSON.stringify(summaryQueryPipeline, null, 2));
 			
 			this.populateSummaryResults(groupDataItem, loadOptions.groupSummary,
 					       (await collection.aggregate(summaryQueryPipeline).toArray())[0]);
@@ -555,7 +586,7 @@ function createContext(contextOptions, loadOptions) {
 	    if (loadOptions.requireGroupCount) {
 		const group = loadOptions.group[0];
 		const groupCountPipeline = filterPipeline.concat(
-		    this.createGroupingPipeline(group.selector, group.desc, group.groupInterval, false),
+		    this.createGroupingPipeline(group.desc, false, true, this.createGroupKeyPipeline(group.selector, group.groupInterval, 0)),
 		    this.createCountPipeline());
 		resultObject.groupCount = await this.getCount(collection, groupCountPipeline);
 	    }
