@@ -42,19 +42,20 @@ function createContext(contextOptions, loadOptions) {
 	    // so I'm doing (dividend - (dividend MOD divisor)) / divisor
 	    const divInt = (dividend, divisor) => ({
 		$divide: [
-		    {
-			$subtract: [
-			    dividend,
-			    {
-				$mod: [
-				    dividend, divisor
-				]
-			    }
-			]
-		    },
+		    subtractMod(dividend, divisor),
 		    divisor
 		]
 	    });
+
+	    const subtractMod = (a, b) => ({
+		$subtract: [
+		    a,
+		    {
+			$mod: [ a, b ]
+		    }
+		]
+	    });
+	    
 
 	    const pipe = (...args) => {
 		let result = Array.from(args);
@@ -65,7 +66,7 @@ function createContext(contextOptions, loadOptions) {
 	    if (groupInterval) {
 		const numericInterval = parseInt(Number(groupInterval));
 		if (numericInterval) {
-		    return pipe(wrapGroupKey(divInt(prefix(selector), numericInterval)));
+		    return pipe(wrapGroupKey(subtractMod(prefix(selector), numericInterval)));
 		}
 		else {
 		    switch(groupInterval) {

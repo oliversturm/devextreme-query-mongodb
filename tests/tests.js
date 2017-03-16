@@ -856,11 +856,19 @@ describe("query-values", function() {
 		requireTotalCount: true,
 		requireGroupCount: true
 	    }, function(res) {
+		console.log("Result is ", JSON.stringify(res, null, 2));
 		expect(res.totalCount, "totalCount").to.eql(TESTRECORD_COUNT);
 		expect(res.groupCount, "groupCount").to.eql(5);
 		
 		expect(res.data, "res.data").to.be.instanceof(Array);
 		expect(res.data, "group list length").to.have.lengthOf(5);
+
+		expect(res.data[0].key, "group 1 key").to.eql(0);
+		expect(res.data[1].key, "group 2 key").to.eql(2);
+		expect(res.data[2].key, "group 3 key").to.eql(4);
+		expect(res.data[3].key, "group 4 key").to.eql(6);
+		expect(res.data[4].key, "group 5 key").to.eql(8);
+		
 	    });
 	});
 
