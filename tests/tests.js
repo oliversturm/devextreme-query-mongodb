@@ -217,6 +217,59 @@ describe("query-values", function() {
 	    });
 	});
 
+	it("list should filter with date.Month and nested array", function(tdone) {
+	    testQueryValues(tdone, {
+		// some pivot grid queries nest a single filter condition in an extra array
+		filter: [[
+		    "date1.Month", "<=", 2
+		]],
+		requireTotalCount: true
+	    }, function(res) {
+		console.log("Result is ", JSON.stringify(res, null, 2));
+		expect(res.totalCount, "totalCount").to.eql(59);
+		
+		expect(res.data, "res.data").to.be.instanceof(Array);
+		expect(res.data, "list length").to.have.lengthOf(59);
+	    });
+	});
+
+	it("list should filter and group (sample 1)", function(tdone) {
+	    testQueryValues(tdone, {
+		filter: [
+		    ["date2.Month", ">=", 4],
+		    "and",
+		    ["date2.Month", "<", 7]
+		],
+		group: [
+		    {
+			groupInterval: "month",
+			isExpanded: false,
+			selector: "date1"
+		    }
+		],
+		groupSummary: [
+		    {
+			selector: "int1",
+			summaryType: "sum"
+		    }
+		],
+		totalSummary: [{
+		    selector: "int1",
+		    summaryType: "sum"
+		}],
+		requireTotalCount: true
+	    }, function(res) {
+		console.log("Result is ", JSON.stringify(res, null, 2));
+
+		// expects are wrong at this point
+		expect(res.totalCount, "totalCount").to.eql(59);
+		
+		expect(res.data, "res.data").to.be.instanceof(Array);
+		expect(res.data, "list length").to.have.lengthOf(59);
+	    });
+	});
+	
+
 	it("list should filter with endswith", function(tdone) {
 	    testQueryValues(tdone, {
 		filter: [
@@ -856,7 +909,7 @@ describe("query-values", function() {
 		requireTotalCount: true,
 		requireGroupCount: true
 	    }, function(res) {
-		console.log("Result is ", JSON.stringify(res, null, 2));
+		//console.log("Result is ", JSON.stringify(res, null, 2));
 		expect(res.totalCount, "totalCount").to.eql(TESTRECORD_COUNT);
 		expect(res.groupCount, "groupCount").to.eql(5);
 		

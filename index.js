@@ -370,7 +370,13 @@ function createContext(contextOptions, loadOptions) {
 		return construct(element, "$eq", true);
 	    }
 	    else if (element.length) {
-		if (element.length === 2) {
+		if (element.length === 1 && element[0].length) {
+		    // assuming a nested array in this case:
+		    // the pivot grid sometimes does this
+		    // [ [ "field", "=", 5 ] ]
+		    return this.parseFilter(element[0]);
+		}
+		else if (element.length === 2) {
 		    // unary operator - only one supported
 		    if (element[0] === "!") {
 			const nor = this.parseFilter(element[1]);
