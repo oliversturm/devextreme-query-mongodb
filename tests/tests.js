@@ -225,11 +225,35 @@ describe("query-values", function() {
 		]],
 		requireTotalCount: true
 	    }, function(res) {
-		console.log("Result is ", JSON.stringify(res, null, 2));
+		//console.log("Result is ", JSON.stringify(res, null, 2));
 		expect(res.totalCount, "totalCount").to.eql(59);
 		
 		expect(res.data, "res.data").to.be.instanceof(Array);
 		expect(res.data, "list length").to.have.lengthOf(59);
+	    });
+	});
+
+	it.only("list should filter with date.Quarter", function(tdone) {
+	    testQueryValues(tdone, {
+		filter: [
+		    "date1.quarter", "=", 2
+		],
+		requireTotalCount: true
+	    }, function(res) {
+		console.log("Result is ", JSON.stringify(res, null, 2));
+		expect(res.totalCount, "totalCount").to.eql(10);
+		
+		expect(res.data, "res.data").to.be.instanceof(Array);
+		expect(res.data, "list length").to.have.lengthOf(10);
+
+		expect(res.data[0].date1, "date1").to.be.a("date");
+		expect(res.data[0].date2, "date2").to.be.a("date");
+		expect(res.data[0].int1, "int1").to.be.a("number");
+		expect(res.data[0].int2, "int2").to.be.a("number");
+		expect(res.data[0].string, "string").to.be.a("string");
+		expect(res.data[0].___mp2, "___mp2").to.be.undefined;
+		expect(res.data[0].___date1_quarter, "___date1_quarter").to.be.undefined;
+		
 	    });
 	});
 
@@ -259,13 +283,15 @@ describe("query-values", function() {
 		}],
 		requireTotalCount: true
 	    }, function(res) {
-		console.log("Result is ", JSON.stringify(res, null, 2));
+		//console.log("Result is ", JSON.stringify(res, null, 2));
 
-		// expects are wrong at this point
-		expect(res.totalCount, "totalCount").to.eql(59);
+		expect(res.totalCount, "totalCount").to.eql(10);
 		
 		expect(res.data, "res.data").to.be.instanceof(Array);
-		expect(res.data, "list length").to.have.lengthOf(59);
+		expect(res.data, "list length").to.have.lengthOf(1);
+
+		expect(res.summary[0], "summary value").to.eql(45);
+		
 	    });
 	});
 	

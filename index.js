@@ -23,7 +23,7 @@ function createContext(contextOptions, loadOptions) {
 	    };
 	},
 
-	createGroupFieldName: groupIndex => "_group_key_" + groupIndex,
+	createGroupFieldName: groupIndex => "___group_key_" + groupIndex,
 	
 	createGroupKeyPipeline: function(selector, groupInterval, groupIndex) {
 	    const wrapGroupKey = keyExpr => {
@@ -80,7 +80,7 @@ function createContext(contextOptions, loadOptions) {
 				// will reuse the field and we don't want to calculate it multiple
 				// times
 				$addFields: {
-				    _mp2_: {
+				    ___mp2: {
 					$add: [
 					    {
 						$month: prefix(selector)
@@ -90,7 +90,7 @@ function createContext(contextOptions, loadOptions) {
 				    }
 				}
 			    },
-			    wrapGroupKey(divInt("$_mp2_", 3))
+			    wrapGroupKey(divInt("$___mp2", 3))
 			);
 		    case "month":
 			return pipe(wrapGroupKey({
@@ -263,19 +263,19 @@ function createContext(contextOptions, loadOptions) {
 		for (const s of summary) {
 		    switch(s.summaryType) {
 		    case "sum":
-			gc["_sum_" + s.selector] = { $sum: "$" + s.selector };
+			gc["___sum" + s.selector] = { $sum: "$" + s.selector };
 			break;
 		    case "avg":
-			gc["_avg_" + s.selector] = { $avg: "$" + s.selector };
+			gc["___avg" + s.selector] = { $avg: "$" + s.selector };
 			break;
 		    case "min":
-			gc["_min_" + s.selector] = { $min: "$" + s.selector };
+			gc["___min" + s.selector] = { $min: "$" + s.selector };
 			break;
 		    case "max":
-			gc["_max_" + s.selector] = { $max: "$" + s.selector };
+			gc["___max" + s.selector] = { $max: "$" + s.selector };
 			break;
 		    case "count":
-			gc._count = { $sum: 1 };
+			gc.___count = { $sum: 1 };
 			break;
 		    }
 		}
@@ -287,7 +287,12 @@ function createContext(contextOptions, loadOptions) {
 	},
 
 	createSearchPipeline: function(expr, op, val) {
-	    if (!expr || !op || !val) return [];
+	    const dummy = {
+		pipeline: [],
+		fieldList: []
+	    };
+
+	    if (!expr || !op || !val) return dummy;
 	    
 	    let criteria;
 	    if (typeof expr === "string")
@@ -299,7 +304,7 @@ function createContext(contextOptions, loadOptions) {
 		    criteria.push([exprItem, op, val]);
 		}
 	    }
-	    else return [];
+	    else return dummy;
 	    
 	    return this.createFilterPipeline(criteria);
 	},
@@ -377,7 +382,9 @@ function createContext(contextOptions, loadOptions) {
 
 	    if (typeof element === "string") {
 		fieldList.push(element);
-		return construct(element, "$eq", true);
+		const nf = this.checkNestedField(element);
+		const fieldName = nf ? nf.filterFieldName : element;
+		return construct(fieldName, "$eq", true);
 	    }
 	    else if (element.length) {
 		if (element.length === 1 && element[0].length) {
@@ -429,27 +436,30 @@ function createContext(contextOptions, loadOptions) {
 		    else {
 			if (element.length === 3) {
 			    fieldList.push(element[0]);
+			    const nf = this.checkNestedField(element[0]);
+			    const fieldName = nf ? nf.filterFieldName : element[0];
+
 			    switch(operator) {
 			    case "=":
-				return construct(element[0], "$eq", element[2]);
+				return construct(fieldName, "$eq", element[2]);
 			    case "<>":
-				return construct(element[0], "$ne", element[2]);
+				return construct(fieldName, "$ne", element[2]);
 			    case ">":
-				return construct(element[0], "$gt", element[2]);
+				return construct(fieldName, "$gt", element[2]);
 			    case ">=":
-				return construct(element[0], "$gte", element[2]);
+				return construct(fieldName, "$gte", element[2]);
 			    case "<":
-				return construct(element[0], "$lt", element[2]);
+				return construct(fieldName, "$lt", element[2]);
 			    case "<=":
-				return construct(element[0], "$lte", element[2]);
+				return construct(fieldName, "$lte", element[2]);
 			    case "startswith":
-				return constructRegex(element[0], "^" + element[2]);
+				return constructRegex(fieldName, "^" + element[2]);
 			    case "endswith":
-				return constructRegex(element[0], element[2] + "$");
+				return constructRegex(fieldName, element[2] + "$");
 			    case "contains":
-				return constructRegex(element[0], element[2]);
+				return constructRegex(fieldName, element[2]);
 			    case "notcontains":
-				return constructRegex(element[0], "^((?!" + element[2] + ").)*$");
+				return constructRegex(fieldName, "^((?!" + element[2] + ").)*$");
 			    default: return null;
 			    }
 			}
@@ -468,19 +478,19 @@ function createContext(contextOptions, loadOptions) {
 		for (const s of summary) {
 		    switch(s.summaryType) {
 		    case "sum":
-			target.summary.push(summaryResults["_sum_" + s.selector]);
+			target.summary.push(summaryResults["___sum" + s.selector]);
 			break;
 		    case "avg":
-			target.summary.push(summaryResults["_avg_" + s.selector]);
+			target.summary.push(summaryResults["___avg" + s.selector]);
 			break;
 		    case "min":
-			target.summary.push(summaryResults["_min_" + s.selector]);
+			target.summary.push(summaryResults["___min" + s.selector]);
 			break;
 		    case "max":
-			target.summary.push(summaryResults["_max_" + s.selector]);
+			target.summary.push(summaryResults["___max" + s.selector]);
 			break;
 		    case "count":
-			target.summary.push(summaryResults._count);
+			target.summary.push(summaryResults.___count);
 			break;
 		    }
 		}
@@ -587,6 +597,125 @@ function createContext(contextOptions, loadOptions) {
 	    return groupData;
 	},
 
+	// check whether any of the fields have a path structure ("field.Nested")
+	// and a recognized element for the nested part
+	// if so, I need to add the nested fields to the pipeline for filtering
+	nestedFieldRegex: /^([^.]+)\.(year|quarter|month|dayofweek|day)$/i,
+
+	checkNestedField: function(fieldName) {
+	    const match = this.nestedFieldRegex.exec(fieldName);
+	    if (!match) return undefined;
+	    return {
+		base: match[1],
+		nested: match[2],
+		filterFieldName: `___${match[1]}_${match[2]}`
+	    };
+	},
+	
+	createAddNestedFieldsPipeline: function(fieldNames) {
+	    // copy&paste warning: these functions also exist in createGroupKeyPipeline,
+	    // should be refactored
+	    const divInt = (dividend, divisor) => ({
+		$divide: [
+		    subtractMod(dividend, divisor),
+		    divisor
+		]
+	    });
+
+	    const subtractMod = (a, b) => ({
+		$subtract: [
+		    a,
+		    {
+			$mod: [ a, b ]
+		    }
+		]
+	    });
+	    
+	    // constructing a pipeline that potentially has two parts, because the
+	    // quarter calculation has two steps
+	    // both parts will be wrapped in { $addFields: PART } after this
+	    // reduce call completes
+	    const pipeline = fieldNames.reduce((r, v) => {
+		const nf = this.checkNestedField(v);
+		
+		if (nf) {
+		    // ignore all unknown cases - perhaps people have actual db fields
+		    // with . in them
+		    
+		    switch(nf.nested.toLowerCase()) {
+		    case "year":
+			r[1][nf.filterFieldName] = {
+			    $year: "$" + nf.base
+			};
+			break;
+		    case "quarter":
+			r[0].___mp2 = {
+			    $add: [
+				{
+				    $month: "$" + nf.base
+				},
+				2
+			    ]
+			};
+			r[1][nf.filterFieldName] = divInt("$___mp2", 3);
+			break;
+		    case "month":
+			r[1][nf.filterFieldName] = {
+			    $month: "$" + nf.base
+			};
+			break;
+		    case "day":
+			r[1][nf.filterFieldName] = {
+			    $dayOfMonth: "$" + nf.base
+			};
+			break;
+		    case "dayofweek":
+			r[1][nf.filterFieldName] = {
+			    $subtract: [
+				{
+				    $dayOfWeek: "$" + nf.base
+				},
+				1
+			    ]
+			};
+			break;
+		    }
+		}
+		return r;
+	    }, [{}, {}]);
+	    [1, 0].forEach(i => {
+		if (Object.getOwnPropertyNames(pipeline[i]).length === 0) {
+		    pipeline.splice(i, 1); // nothing in this part, remove
+		}
+		else {
+		    pipeline[i] = {
+			$addFields: pipeline[i]
+		    };
+		}
+	    });
+	    return pipeline;
+	},
+	
+	createCompleteFilterPipeline: function() {
+	    // this pipeline has the search options, the function also returns
+	    // a list of fields that are being accessed
+	    const searchPipeline = this.createSearchPipeline(loadOptions.searchExpr,
+							     loadOptions.searchOperation,
+							     loadOptions.searchValue);
+	    // and the same for the filter option
+	    const filterPipeline = this.createFilterPipeline(loadOptions.filter);
+	    
+	    // this pipeline adds fields in case there are nested elements:
+	    // dateField.Month
+	    const addNestedFieldsPipeline = this.createAddNestedFieldsPipeline(
+		searchPipeline.fieldList.concat(filterPipeline.fieldList));
+	    
+	    return addNestedFieldsPipeline.concat(
+		searchPipeline.pipeline,
+		filterPipeline.pipeline);
+	},
+	
+
 	queryGroups: async function(collection) {
 	    const completeFilterPipeline = this.createCompleteFilterPipeline();
 	    const summaryPipeline = this.createSummaryPipeline(loadOptions.groupSummary);
@@ -622,72 +751,6 @@ function createContext(contextOptions, loadOptions) {
 	    return resultObject;
 	},
 
-	createAddNestedFieldsPipeline: function(fieldNames) {
-	    // check whether any of the fields have a path structure ("field.Nested")
-	    // and a recognized element for the nested part
-	    // if so, I need to add the nested fields to the pipeline for filtering
-	    const re = /^([^.]+)\.(year|quarter|month|dayofweek|day)$/i;
-	    const fieldObject = fieldNames.reduce((r, v) => {
-		const match = re.exec(v);
-		if (match) {
-		    // ignore all unknown cases - perhaps people have actual db fields
-		    // with . in them
-		    const base = match [1];
-		    const nested = match[2];
-		    
-		    switch(nested.toLowerCase()) {
-		    case "year":
-			r[v] = {
-			    $year: "$" + base
-			};
-			break;
-		    case "quarter":
-			break;
-		    case "month":
-			r[v] = {
-			    $month: "$" + base
-			};
-			break;
-		    case "day":
-			r[v] = {
-			    $dayOfMonth: "$" + base
-			};
-			break;
-		    case "dayofweek":
-			r[v] = {
-			    $subtract: [
-				{
-				    $dayOfWeek: "$" + base
-				},
-				1
-			    ]
-			};
-			break;
-		    }
-		}
-		return r;
-	    }, {});
-	    
-	},
-	
-	createCompleteFilterPipeline: function() {
-	    // this pipeline has the search options, the function also returns
-	    // a list of fields that are being accessed
-	    const searchPipeline = this.createSearchPipeline(loadOptions.searchExpr,
-							     loadOptions.searchOperation,
-							     loadOptions.searchValue);
-	    // and the same for the filter option
-	    const filterPipeline = this.createFilterPipeline(loadOptions.filter);
-	    // this pipeline adds fields in case there are nested elements:
-	    // dateField.Month
-	    const addNestedFieldsPipeline = this.createAddNestedFieldsPipeline(
-		searchPipeline.fieldList.concat(filterPipeline.fieldList));
-	    
-	    return addNestedFieldsPipeline.concat(
-		searchPipeline.pipeline,
-		filterPipeline.pipeline);
-	},
-	
 	querySimple: async function(collection) {
 	    const completeFilterPipeline = this.createCompleteFilterPipeline();
 	    const sortPipeline = this.createSortPipeline(loadOptions.sort);
