@@ -498,10 +498,11 @@ function createContext(contextOptions, loadOptions) {
 	},
 
 	queryGroupData: async function (collection, desc, includeDataItems, countSeparately, itemProjection,
-					groupKeyPipeline, sortPipeline, filterPipeline, skipTakePipeline, matchPipeline) {
+					groupKeyPipeline, sortPipeline, filterPipelineDetails, skipTakePipeline, matchPipeline) {
 	    const pipeline = sortPipeline.concat( // sort pipeline first, apparently that enables it to use indexes
-		filterPipeline,
+		filterPipelineDetails.pipeline,
 		matchPipeline,
+		this.createRemoveNestedFieldsPipeline(filterPipelineDetails.nestedFields),
 		this.createGroupingPipeline(desc, includeDataItems, countSeparately, groupKeyPipeline, itemProjection),
 		skipTakePipeline
 	    );
@@ -518,7 +519,7 @@ function createContext(contextOptions, loadOptions) {
 	},
 
 	queryGroup: async function(collection, groupIndex, runSummaryQuery,
-				   filterPipeline = [], skipTakePipeline = [], summaryPipeline=[], matchPipeline=[]) {
+				   filterPipelineDetails, skipTakePipeline = [], summaryPipeline=[], matchPipeline=[]) {
 	    const group = loadOptions.group[groupIndex];
 	    const lastGroup = groupIndex === loadOptions.group.length - 1;
 	    const itemDataRequired = lastGroup && group.isExpanded;
@@ -536,12 +537,12 @@ function createContext(contextOptions, loadOptions) {
 							this.createSelectProjectExpression(loadOptions.select, true),
 							groupKeyPipeline,
 							itemDataRequired ? this.createSortPipeline(loadOptions.sort) : [],
-							filterPipeline, skipTakePipeline, matchPipeline);
+							filterPipelineDetails, skipTakePipeline, matchPipeline);
 	    if (subGroupsRequired) {
 		for (const groupDataItem of groupData) {
 		    groupDataItem.items = await this.queryGroup(
 			collection, groupIndex + 1, runSummaryQuery,
-			filterPipeline, // used unchanged in lower levels
+			filterPipelineDetails, // used unchanged in lower levels
 			[], // skip/take doesn't apply on lower levels - correct?
 			summaryPipeline, // unmodified
 			// matchPipeline modified to filter down into group level
@@ -567,7 +568,7 @@ function createContext(contextOptions, loadOptions) {
 		const nextGroup = loadOptions.group[groupIndex + 1];
 		const nextGroupKeyPipeline = this.createGroupKeyPipeline(nextGroup.selector, nextGroup.groupInterval, groupIndex + 1);
 		for (const groupDataItem of groupData) {
-		    const pipeline = filterPipeline.concat(
+		    const pipeline = filterPipelineDetails.pipeline.concat(
 			groupKeyPipeline,
 			matchPipeline.concat(this.createMatchPipeline(this.createGroupFieldName(groupIndex), groupDataItem.key)),
 			this.createGroupingPipeline(nextGroup.desc, false, true, nextGroupKeyPipeline),
@@ -581,7 +582,7 @@ function createContext(contextOptions, loadOptions) {
 		for (const groupDataItem of groupData) {
 
 		    await runSummaryQuery(async () => {
-			const summaryQueryPipeline = filterPipeline.concat(
+			const summaryQueryPipeline = filterPipelineDetails.pipeline.concat(
 			    groupKeyPipeline,
 			    matchPipeline.concat(this.createMatchPipeline(this.createGroupFieldName(groupIndex), groupDataItem.key)),
 			    summaryPipeline);
@@ -635,7 +636,7 @@ function createContext(contextOptions, loadOptions) {
 	    // quarter calculation has two steps
 	    // both parts will be wrapped in { $addFields: PART } after this
 	    // reduce call completes
-	    const pipeline = fieldNames.reduce((r, v) => {
+	    const pr = fieldNames.reduce((r, v) => {
 		const nf = this.checkNestedField(v);
 		
 		if (nf) {
@@ -644,12 +645,14 @@ function createContext(contextOptions, loadOptions) {
 		    
 		    switch(nf.nested.toLowerCase()) {
 		    case "year":
-			r[1][nf.filterFieldName] = {
+			r.pipeline[1][nf.filterFieldName] = {
 			    $year: "$" + nf.base
 			};
+			r.nestedFields.push(nf.filterFieldName);
 			break;
 		    case "quarter":
-			r[0].___mp2 = {
+			const tempField = `___${nf.base}_mp2`;
+			r.pipeline[0][tempField] = {
 			    $add: [
 				{
 				    $month: "$" + nf.base
@@ -657,20 +660,24 @@ function createContext(contextOptions, loadOptions) {
 				2
 			    ]
 			};
-			r[1][nf.filterFieldName] = divInt("$___mp2", 3);
+			r.nestedFields.push(tempField);
+			r.pipeline[1][nf.filterFieldName] = divInt("$" + tempField, 3);
+			r.nestedFields.push(nf.filterFieldName);
 			break;
 		    case "month":
-			r[1][nf.filterFieldName] = {
+			r.pipeline[1][nf.filterFieldName] = {
 			    $month: "$" + nf.base
 			};
+			r.nestedFields.push(nf.filterFieldName);
 			break;
 		    case "day":
-			r[1][nf.filterFieldName] = {
+			r.pipeline[1][nf.filterFieldName] = {
 			    $dayOfMonth: "$" + nf.base
 			};
+			r.nestedFields.push(nf.filterFieldName);
 			break;
 		    case "dayofweek":
-			r[1][nf.filterFieldName] = {
+			r.pipeline[1][nf.filterFieldName] = {
 			    $subtract: [
 				{
 				    $dayOfWeek: "$" + nf.base
@@ -678,22 +685,26 @@ function createContext(contextOptions, loadOptions) {
 				1
 			    ]
 			};
+			r.nestedFields.push(nf.filterFieldName);
 			break;
 		    }
 		}
 		return r;
-	    }, [{}, {}]);
+	    }, {
+		pipeline: [{}, {}],
+		nestedFields: []
+	    });
 	    [1, 0].forEach(i => {
-		if (Object.getOwnPropertyNames(pipeline[i]).length === 0) {
-		    pipeline.splice(i, 1); // nothing in this part, remove
+		if (Object.getOwnPropertyNames(pr.pipeline[i]).length === 0) {
+		    pr.pipeline.splice(i, 1); // nothing in this part, remove
 		}
 		else {
-		    pipeline[i] = {
-			$addFields: pipeline[i]
+		    pr.pipeline[i] = {
+			$addFields: pr.pipeline[i]
 		    };
 		}
 	    });
-	    return pipeline;
+	    return pr;
 	},
 	
 	createCompleteFilterPipeline: function() {
@@ -707,35 +718,47 @@ function createContext(contextOptions, loadOptions) {
 	    
 	    // this pipeline adds fields in case there are nested elements:
 	    // dateField.Month
-	    const addNestedFieldsPipeline = this.createAddNestedFieldsPipeline(
+	    const addNestedFieldsPipelineDetails = this.createAddNestedFieldsPipeline(
 		searchPipeline.fieldList.concat(filterPipeline.fieldList));
 	    
-	    return addNestedFieldsPipeline.concat(
-		searchPipeline.pipeline,
-		filterPipeline.pipeline);
+	    return {
+		pipeline: addNestedFieldsPipelineDetails.pipeline.concat(
+		    searchPipeline.pipeline,
+		    filterPipeline.pipeline),
+		nestedFields: addNestedFieldsPipelineDetails.nestedFields
+	    };
 	},
-	
+
+	createRemoveNestedFieldsPipeline: function(nestedFields) {
+	    if (nestedFields.length === 0) return [];
+	    
+	    let pd = {};
+	    for (const f of nestedFields) pd[f] = 0;
+	    return [{
+		$project: pd
+	    }];
+	},
 
 	queryGroups: async function(collection) {
-	    const completeFilterPipeline = this.createCompleteFilterPipeline();
+	    const completeFilterPipelineDetails = this.createCompleteFilterPipeline();
 	    const summaryPipeline = this.createSummaryPipeline(loadOptions.groupSummary);
 	    const skipTakePipeline = this.createSkipTakePipeline(loadOptions.skip, loadOptions.take);
 
 	    let resultObject = {
 		data: await this.queryGroup(collection, 0, this.createSummaryQueryExecutor(),
-				     completeFilterPipeline, skipTakePipeline, summaryPipeline)
+				     completeFilterPipelineDetails, skipTakePipeline, summaryPipeline)
 	    };
 
 	    if (loadOptions.requireGroupCount) {
 		const group = loadOptions.group[0];
-		const groupCountPipeline = completeFilterPipeline.concat(
+		const groupCountPipeline = completeFilterPipelineDetails.pipeline.concat(
 		    this.createGroupingPipeline(group.desc, false, true, this.createGroupKeyPipeline(group.selector, group.groupInterval, 0)),
 		    this.createCountPipeline());
 		resultObject.groupCount = await this.getCount(collection, groupCountPipeline);
 	    }
 
 	    if (loadOptions.requireTotalCount || loadOptions.totalSummary) {
-		const totalCountPipeline = completeFilterPipeline.concat(
+		const totalCountPipeline = completeFilterPipelineDetails.pipeline.concat(
 		    this.createCountPipeline()
 		);
 		resultObject.totalCount = await this.getCount(collection, totalCountPipeline);
@@ -743,7 +766,7 @@ function createContext(contextOptions, loadOptions) {
 
 	    // see comment in querySimple
 	    if (resultObject.totalCount > 0 && loadOptions.totalSummary) {
-		const summaryPipeline = completeFilterPipeline.concat(this.createSummaryPipeline(loadOptions.totalSummary));
+		const summaryPipeline = completeFilterPipelineDetails.pipeline.concat(this.createSummaryPipeline(loadOptions.totalSummary));
 		this.populateSummaryResults(resultObject, loadOptions.totalSummary,
 				       (await collection.aggregate(summaryPipeline).toArray())[0]);
 	    }
@@ -752,19 +775,23 @@ function createContext(contextOptions, loadOptions) {
 	},
 
 	querySimple: async function(collection) {
-	    const completeFilterPipeline = this.createCompleteFilterPipeline();
+	    const completeFilterPipelineDetails = this.createCompleteFilterPipeline();
 	    const sortPipeline = this.createSortPipeline(loadOptions.sort);
 	    const skipTakePipeline = this.createSkipTakePipeline(loadOptions.skip, loadOptions.take);
 	    const selectPipeline = this.createSelectPipeline(loadOptions.select);
+	    const removeNestedFieldsPipeline = this.createRemoveNestedFieldsPipeline(completeFilterPipelineDetails.nestedFields);
 
-	    const dataPipeline = completeFilterPipeline.concat(sortPipeline, skipTakePipeline, selectPipeline);
+	    const dataPipeline = completeFilterPipelineDetails.pipeline.concat(sortPipeline,
+									       skipTakePipeline,
+									       selectPipeline,
+									       removeNestedFieldsPipeline);
 
 	    let resultObject = {
 		data: (await collection.aggregate(dataPipeline).toArray()).map(this.replaceId)
 	    };
 
 	    if (loadOptions.requireTotalCount || loadOptions.totalSummary) {
-		const countPipeline = completeFilterPipeline.concat(this.createCountPipeline());
+		const countPipeline = completeFilterPipelineDetails.pipeline.concat(this.createCountPipeline());
 		resultObject.totalCount = await this.getCount(collection, countPipeline);
 	    }
 
@@ -772,7 +799,7 @@ function createContext(contextOptions, loadOptions) {
 	    // to have an empty dataset if loadOptions.take is zero, but still values to calculate
 	    // summaries against.
 	    if (resultObject.totalCount > 0 && loadOptions.totalSummary) {
-		const summaryPipeline = completeFilterPipeline.concat(this.createSummaryPipeline(loadOptions.totalSummary));
+		const summaryPipeline = completeFilterPipelineDetails.pipeline.concat(this.createSummaryPipeline(loadOptions.totalSummary));
 		this.populateSummaryResults(resultObject, loadOptions.totalSummary,
 				       (await collection.aggregate(summaryPipeline).toArray())[0]);
 	    }
