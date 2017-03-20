@@ -23,7 +23,7 @@ function createContext(contextOptions, loadOptions) {
 	    };
 	},
 
-	createGroupFieldName: groupIndex => "_group_key_" + groupIndex,
+	createGroupFieldName: groupIndex => "___group_key_" + groupIndex,
 	
 	createGroupKeyPipeline: function(selector, groupInterval, groupIndex) {
 	    const wrapGroupKey = keyExpr => {
@@ -80,7 +80,7 @@ function createContext(contextOptions, loadOptions) {
 				// will reuse the field and we don't want to calculate it multiple
 				// times
 				$addFields: {
-				    _mp2_: {
+				    ___mp2: {
 					$add: [
 					    {
 						$month: prefix(selector)
@@ -90,7 +90,7 @@ function createContext(contextOptions, loadOptions) {
 				    }
 				}
 			    },
-			    wrapGroupKey(divInt("$_mp2_", 3))
+			    wrapGroupKey(divInt("$___mp2", 3))
 			);
 		    case "month":
 			return pipe(wrapGroupKey({
@@ -227,14 +227,23 @@ function createContext(contextOptions, loadOptions) {
 	},
 
 	createFilterPipeline: function(filter) {
+	    const dummy = {
+		pipeline: [],
+		fieldList: []
+	    };
+	    
 	    if (filter) {
-		const match = this.parseFilter(filter);
-		if (match) return [{
-		    $match: match
-		}];
-		else return [];
+		let fieldList = [];
+		const match = this.parseFilter(filter, fieldList);
+		if (match) return {
+		    pipeline: [{
+			$match: match
+		    }],
+		    fieldList: fieldList
+		};
+		else return dummy;
 	    }
-	    else return [];
+	    else return dummy;
 	},
 
 	createSortPipeline: function(sort) {
@@ -254,19 +263,19 @@ function createContext(contextOptions, loadOptions) {
 		for (const s of summary) {
 		    switch(s.summaryType) {
 		    case "sum":
-			gc["_sum_" + s.selector] = { $sum: "$" + s.selector };
+			gc["___sum" + s.selector] = { $sum: "$" + s.selector };
 			break;
 		    case "avg":
-			gc["_avg_" + s.selector] = { $avg: "$" + s.selector };
+			gc["___avg" + s.selector] = { $avg: "$" + s.selector };
 			break;
 		    case "min":
-			gc["_min_" + s.selector] = { $min: "$" + s.selector };
+			gc["___min" + s.selector] = { $min: "$" + s.selector };
 			break;
 		    case "max":
-			gc["_max_" + s.selector] = { $max: "$" + s.selector };
+			gc["___max" + s.selector] = { $max: "$" + s.selector };
 			break;
 		    case "count":
-			gc._count = { $sum: 1 };
+			gc.___count = { $sum: 1 };
 			break;
 		    }
 		}
@@ -278,7 +287,12 @@ function createContext(contextOptions, loadOptions) {
 	},
 
 	createSearchPipeline: function(expr, op, val) {
-	    if (!expr || !op || !val) return [];
+	    const dummy = {
+		pipeline: [],
+		fieldList: []
+	    };
+
+	    if (!expr || !op || !val) return dummy;
 	    
 	    let criteria;
 	    if (typeof expr === "string")
@@ -290,7 +304,7 @@ function createContext(contextOptions, loadOptions) {
 		    criteria.push([exprItem, op, val]);
 		}
 	    }
-	    else return [];
+	    else return dummy;
 	    
 	    return this.createFilterPipeline(criteria);
 	},
@@ -322,7 +336,7 @@ function createContext(contextOptions, loadOptions) {
 	    return coll.length > 0 ? coll[0].count : 0;
 	},
 
-	parseFilter: function(element) {
+	parseFilter: function(element, fieldList) {
 	    // Element can be a string denoting a field name - I don't know if that's a case
 	    // supported by the widgets in any way, but it seems conceivable that somebody constructs
 	    // an expression like [ "!", "boolValueField" ]
@@ -367,19 +381,22 @@ function createContext(contextOptions, loadOptions) {
 	    }
 
 	    if (typeof element === "string") {
-		return construct(element, "$eq", true);
+		fieldList.push(element);
+		const nf = this.checkNestedField(element);
+		const fieldName = nf ? nf.filterFieldName : element;
+		return construct(fieldName, "$eq", true);
 	    }
 	    else if (element.length) {
 		if (element.length === 1 && element[0].length) {
 		    // assuming a nested array in this case:
 		    // the pivot grid sometimes does this
 		    // [ [ "field", "=", 5 ] ]
-		    return this.parseFilter(element[0]);
+		    return this.parseFilter(element[0], fieldList);
 		}
 		else if (element.length === 2) {
 		    // unary operator - only one supported
 		    if (element[0] === "!") {
-			const nor = this.parseFilter(element[1]);
+			const nor = this.parseFilter(element[1], fieldList);
 			if (nor) return {
 			    $nor: [
 				nor
@@ -406,7 +423,7 @@ function createContext(contextOptions, loadOptions) {
 				(element.reduce((r, v) => {
 				    if (r.previous) return { list: r.list, previous: false };
 				    else {
-					const nestedFilter = this.parseFilter(v);
+					const nestedFilter = this.parseFilter(v, fieldList);
 					if (nestedFilter) r.list.push(nestedFilter);
 					return { list: r.list, previous: true };
 				    }
@@ -418,27 +435,31 @@ function createContext(contextOptions, loadOptions) {
 		    }
 		    else {
 			if (element.length === 3) {
+			    fieldList.push(element[0]);
+			    const nf = this.checkNestedField(element[0]);
+			    const fieldName = nf ? nf.filterFieldName : element[0];
+
 			    switch(operator) {
 			    case "=":
-				return construct(element[0], "$eq", element[2]);
+				return construct(fieldName, "$eq", element[2]);
 			    case "<>":
-				return construct(element[0], "$ne", element[2]);
+				return construct(fieldName, "$ne", element[2]);
 			    case ">":
-				return construct(element[0], "$gt", element[2]);
+				return construct(fieldName, "$gt", element[2]);
 			    case ">=":
-				return construct(element[0], "$gte", element[2]);
+				return construct(fieldName, "$gte", element[2]);
 			    case "<":
-				return construct(element[0], "$lt", element[2]);
+				return construct(fieldName, "$lt", element[2]);
 			    case "<=":
-				return construct(element[0], "$lte", element[2]);
+				return construct(fieldName, "$lte", element[2]);
 			    case "startswith":
-				return constructRegex(element[0], "^" + element[2]);
+				return constructRegex(fieldName, "^" + element[2]);
 			    case "endswith":
-				return constructRegex(element[0], element[2] + "$");
+				return constructRegex(fieldName, element[2] + "$");
 			    case "contains":
-				return constructRegex(element[0], element[2]);
+				return constructRegex(fieldName, element[2]);
 			    case "notcontains":
-				return constructRegex(element[0], "^((?!" + element[2] + ").)*$");
+				return constructRegex(fieldName, "^((?!" + element[2] + ").)*$");
 			    default: return null;
 			    }
 			}
@@ -457,19 +478,19 @@ function createContext(contextOptions, loadOptions) {
 		for (const s of summary) {
 		    switch(s.summaryType) {
 		    case "sum":
-			target.summary.push(summaryResults["_sum_" + s.selector]);
+			target.summary.push(summaryResults["___sum" + s.selector]);
 			break;
 		    case "avg":
-			target.summary.push(summaryResults["_avg_" + s.selector]);
+			target.summary.push(summaryResults["___avg" + s.selector]);
 			break;
 		    case "min":
-			target.summary.push(summaryResults["_min_" + s.selector]);
+			target.summary.push(summaryResults["___min" + s.selector]);
 			break;
 		    case "max":
-			target.summary.push(summaryResults["_max_" + s.selector]);
+			target.summary.push(summaryResults["___max" + s.selector]);
 			break;
 		    case "count":
-			target.summary.push(summaryResults._count);
+			target.summary.push(summaryResults.___count);
 			break;
 		    }
 		}
@@ -477,10 +498,11 @@ function createContext(contextOptions, loadOptions) {
 	},
 
 	queryGroupData: async function (collection, desc, includeDataItems, countSeparately, itemProjection,
-					groupKeyPipeline, sortPipeline, filterPipeline, skipTakePipeline, matchPipeline) {
+					groupKeyPipeline, sortPipeline, filterPipelineDetails, skipTakePipeline, matchPipeline) {
 	    const pipeline = sortPipeline.concat( // sort pipeline first, apparently that enables it to use indexes
-		filterPipeline,
+		filterPipelineDetails.pipeline,
 		matchPipeline,
+		this.createRemoveNestedFieldsPipeline(filterPipelineDetails.nestedFields),
 		this.createGroupingPipeline(desc, includeDataItems, countSeparately, groupKeyPipeline, itemProjection),
 		skipTakePipeline
 	    );
@@ -497,7 +519,7 @@ function createContext(contextOptions, loadOptions) {
 	},
 
 	queryGroup: async function(collection, groupIndex, runSummaryQuery,
-				   filterPipeline = [], skipTakePipeline = [], summaryPipeline=[], matchPipeline=[]) {
+				   filterPipelineDetails, skipTakePipeline = [], summaryPipeline=[], matchPipeline=[]) {
 	    const group = loadOptions.group[groupIndex];
 	    const lastGroup = groupIndex === loadOptions.group.length - 1;
 	    const itemDataRequired = lastGroup && group.isExpanded;
@@ -515,12 +537,12 @@ function createContext(contextOptions, loadOptions) {
 							this.createSelectProjectExpression(loadOptions.select, true),
 							groupKeyPipeline,
 							itemDataRequired ? this.createSortPipeline(loadOptions.sort) : [],
-							filterPipeline, skipTakePipeline, matchPipeline);
+							filterPipelineDetails, skipTakePipeline, matchPipeline);
 	    if (subGroupsRequired) {
 		for (const groupDataItem of groupData) {
 		    groupDataItem.items = await this.queryGroup(
 			collection, groupIndex + 1, runSummaryQuery,
-			filterPipeline, // used unchanged in lower levels
+			filterPipelineDetails, // used unchanged in lower levels
 			[], // skip/take doesn't apply on lower levels - correct?
 			summaryPipeline, // unmodified
 			// matchPipeline modified to filter down into group level
@@ -546,7 +568,7 @@ function createContext(contextOptions, loadOptions) {
 		const nextGroup = loadOptions.group[groupIndex + 1];
 		const nextGroupKeyPipeline = this.createGroupKeyPipeline(nextGroup.selector, nextGroup.groupInterval, groupIndex + 1);
 		for (const groupDataItem of groupData) {
-		    const pipeline = filterPipeline.concat(
+		    const pipeline = filterPipelineDetails.pipeline.concat(
 			groupKeyPipeline,
 			matchPipeline.concat(this.createMatchPipeline(this.createGroupFieldName(groupIndex), groupDataItem.key)),
 			this.createGroupingPipeline(nextGroup.desc, false, true, nextGroupKeyPipeline),
@@ -560,7 +582,7 @@ function createContext(contextOptions, loadOptions) {
 		for (const groupDataItem of groupData) {
 
 		    await runSummaryQuery(async () => {
-			const summaryQueryPipeline = filterPipeline.concat(
+			const summaryQueryPipeline = filterPipelineDetails.pipeline.concat(
 			    groupKeyPipeline,
 			    matchPipeline.concat(this.createMatchPipeline(this.createGroupFieldName(groupIndex), groupDataItem.key)),
 			    summaryPipeline);
@@ -576,30 +598,167 @@ function createContext(contextOptions, loadOptions) {
 	    return groupData;
 	},
 
+	// check whether any of the fields have a path structure ("field.Nested")
+	// and a recognized element for the nested part
+	// if so, I need to add the nested fields to the pipeline for filtering
+	nestedFieldRegex: /^([^.]+)\.(year|quarter|month|dayofweek|day)$/i,
+
+	checkNestedField: function(fieldName) {
+	    const match = this.nestedFieldRegex.exec(fieldName);
+	    if (!match) return undefined;
+	    return {
+		base: match[1],
+		nested: match[2],
+		filterFieldName: `___${match[1]}_${match[2]}`
+	    };
+	},
+	
+	createAddNestedFieldsPipeline: function(fieldNames) {
+	    // copy&paste warning: these functions also exist in createGroupKeyPipeline,
+	    // should be refactored
+	    const divInt = (dividend, divisor) => ({
+		$divide: [
+		    subtractMod(dividend, divisor),
+		    divisor
+		]
+	    });
+
+	    const subtractMod = (a, b) => ({
+		$subtract: [
+		    a,
+		    {
+			$mod: [ a, b ]
+		    }
+		]
+	    });
+	    
+	    // constructing a pipeline that potentially has two parts, because the
+	    // quarter calculation has two steps
+	    // both parts will be wrapped in { $addFields: PART } after this
+	    // reduce call completes
+	    const pr = fieldNames.reduce((r, v) => {
+		const nf = this.checkNestedField(v);
+		
+		if (nf) {
+		    // ignore all unknown cases - perhaps people have actual db fields
+		    // with . in them
+		    
+		    switch(nf.nested.toLowerCase()) {
+		    case "year":
+			r.pipeline[1][nf.filterFieldName] = {
+			    $year: "$" + nf.base
+			};
+			r.nestedFields.push(nf.filterFieldName);
+			break;
+		    case "quarter":
+			const tempField = `___${nf.base}_mp2`;
+			r.pipeline[0][tempField] = {
+			    $add: [
+				{
+				    $month: "$" + nf.base
+				},
+				2
+			    ]
+			};
+			r.nestedFields.push(tempField);
+			r.pipeline[1][nf.filterFieldName] = divInt("$" + tempField, 3);
+			r.nestedFields.push(nf.filterFieldName);
+			break;
+		    case "month":
+			r.pipeline[1][nf.filterFieldName] = {
+			    $month: "$" + nf.base
+			};
+			r.nestedFields.push(nf.filterFieldName);
+			break;
+		    case "day":
+			r.pipeline[1][nf.filterFieldName] = {
+			    $dayOfMonth: "$" + nf.base
+			};
+			r.nestedFields.push(nf.filterFieldName);
+			break;
+		    case "dayofweek":
+			r.pipeline[1][nf.filterFieldName] = {
+			    $subtract: [
+				{
+				    $dayOfWeek: "$" + nf.base
+				},
+				1
+			    ]
+			};
+			r.nestedFields.push(nf.filterFieldName);
+			break;
+		    }
+		}
+		return r;
+	    }, {
+		pipeline: [{}, {}],
+		nestedFields: []
+	    });
+	    [1, 0].forEach(i => {
+		if (Object.getOwnPropertyNames(pr.pipeline[i]).length === 0) {
+		    pr.pipeline.splice(i, 1); // nothing in this part, remove
+		}
+		else {
+		    pr.pipeline[i] = {
+			$addFields: pr.pipeline[i]
+		    };
+		}
+	    });
+	    return pr;
+	},
+	
+	createCompleteFilterPipeline: function() {
+	    // this pipeline has the search options, the function also returns
+	    // a list of fields that are being accessed
+	    const searchPipeline = this.createSearchPipeline(loadOptions.searchExpr,
+							     loadOptions.searchOperation,
+							     loadOptions.searchValue);
+	    // and the same for the filter option
+	    const filterPipeline = this.createFilterPipeline(loadOptions.filter);
+	    
+	    // this pipeline adds fields in case there are nested elements:
+	    // dateField.Month
+	    const addNestedFieldsPipelineDetails = this.createAddNestedFieldsPipeline(
+		searchPipeline.fieldList.concat(filterPipeline.fieldList));
+	    
+	    return {
+		pipeline: addNestedFieldsPipelineDetails.pipeline.concat(
+		    searchPipeline.pipeline,
+		    filterPipeline.pipeline),
+		nestedFields: addNestedFieldsPipelineDetails.nestedFields
+	    };
+	},
+
+	createRemoveNestedFieldsPipeline: function(nestedFields) {
+	    if (nestedFields.length === 0) return [];
+	    
+	    let pd = {};
+	    for (const f of nestedFields) pd[f] = 0;
+	    return [{
+		$project: pd
+	    }];
+	},
+
 	queryGroups: async function(collection) {
-	    const filterPipeline =
-		      this.createSearchPipeline(loadOptions.searchExpr,
-						loadOptions.searchOperation,
-						loadOptions.searchValue).concat(
-			  this.createFilterPipeline(loadOptions.filter));
+	    const completeFilterPipelineDetails = this.createCompleteFilterPipeline();
 	    const summaryPipeline = this.createSummaryPipeline(loadOptions.groupSummary);
 	    const skipTakePipeline = this.createSkipTakePipeline(loadOptions.skip, loadOptions.take);
 
 	    let resultObject = {
 		data: await this.queryGroup(collection, 0, this.createSummaryQueryExecutor(),
-				     filterPipeline, skipTakePipeline, summaryPipeline)
+				     completeFilterPipelineDetails, skipTakePipeline, summaryPipeline)
 	    };
 
 	    if (loadOptions.requireGroupCount) {
 		const group = loadOptions.group[0];
-		const groupCountPipeline = filterPipeline.concat(
+		const groupCountPipeline = completeFilterPipelineDetails.pipeline.concat(
 		    this.createGroupingPipeline(group.desc, false, true, this.createGroupKeyPipeline(group.selector, group.groupInterval, 0)),
 		    this.createCountPipeline());
 		resultObject.groupCount = await this.getCount(collection, groupCountPipeline);
 	    }
 
 	    if (loadOptions.requireTotalCount || loadOptions.totalSummary) {
-		const totalCountPipeline = filterPipeline.concat(
+		const totalCountPipeline = completeFilterPipelineDetails.pipeline.concat(
 		    this.createCountPipeline()
 		);
 		resultObject.totalCount = await this.getCount(collection, totalCountPipeline);
@@ -607,7 +766,7 @@ function createContext(contextOptions, loadOptions) {
 
 	    // see comment in querySimple
 	    if (resultObject.totalCount > 0 && loadOptions.totalSummary) {
-		const summaryPipeline = filterPipeline.concat(this.createSummaryPipeline(loadOptions.totalSummary));
+		const summaryPipeline = completeFilterPipelineDetails.pipeline.concat(this.createSummaryPipeline(loadOptions.totalSummary));
 		this.populateSummaryResults(resultObject, loadOptions.totalSummary,
 				       (await collection.aggregate(summaryPipeline).toArray())[0]);
 	    }
@@ -616,23 +775,23 @@ function createContext(contextOptions, loadOptions) {
 	},
 
 	querySimple: async function(collection) {
-	    const filterPipeline =
-		      this.createSearchPipeline(loadOptions.searchExpr,
-						loadOptions.searchOperation,
-						loadOptions.searchValue).concat(
-			  this.createFilterPipeline(loadOptions.filter));
+	    const completeFilterPipelineDetails = this.createCompleteFilterPipeline();
 	    const sortPipeline = this.createSortPipeline(loadOptions.sort);
 	    const skipTakePipeline = this.createSkipTakePipeline(loadOptions.skip, loadOptions.take);
 	    const selectPipeline = this.createSelectPipeline(loadOptions.select);
+	    const removeNestedFieldsPipeline = this.createRemoveNestedFieldsPipeline(completeFilterPipelineDetails.nestedFields);
 
-	    const dataPipeline = filterPipeline.concat(sortPipeline, skipTakePipeline, selectPipeline);
+	    const dataPipeline = completeFilterPipelineDetails.pipeline.concat(sortPipeline,
+									       skipTakePipeline,
+									       selectPipeline,
+									       removeNestedFieldsPipeline);
 
 	    let resultObject = {
 		data: (await collection.aggregate(dataPipeline).toArray()).map(this.replaceId)
 	    };
 
 	    if (loadOptions.requireTotalCount || loadOptions.totalSummary) {
-		const countPipeline = filterPipeline.concat(this.createCountPipeline());
+		const countPipeline = completeFilterPipelineDetails.pipeline.concat(this.createCountPipeline());
 		resultObject.totalCount = await this.getCount(collection, countPipeline);
 	    }
 
@@ -640,7 +799,7 @@ function createContext(contextOptions, loadOptions) {
 	    // to have an empty dataset if loadOptions.take is zero, but still values to calculate
 	    // summaries against.
 	    if (resultObject.totalCount > 0 && loadOptions.totalSummary) {
-		const summaryPipeline = filterPipeline.concat(this.createSummaryPipeline(loadOptions.totalSummary));
+		const summaryPipeline = completeFilterPipelineDetails.pipeline.concat(this.createSummaryPipeline(loadOptions.totalSummary));
 		this.populateSummaryResults(resultObject, loadOptions.totalSummary,
 				       (await collection.aggregate(summaryPipeline).toArray())[0]);
 	    }

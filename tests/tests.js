@@ -225,11 +225,35 @@ describe("query-values", function() {
 		]],
 		requireTotalCount: true
 	    }, function(res) {
-		console.log("Result is ", JSON.stringify(res, null, 2));
+		//console.log("Result is ", JSON.stringify(res, null, 2));
 		expect(res.totalCount, "totalCount").to.eql(59);
 		
 		expect(res.data, "res.data").to.be.instanceof(Array);
 		expect(res.data, "list length").to.have.lengthOf(59);
+	    });
+	});
+
+	it("list should filter with date.Quarter", function(tdone) {
+	    testQueryValues(tdone, {
+		filter: [
+		    "date1.quarter", "=", 2
+		],
+		requireTotalCount: true
+	    }, function(res) {
+		console.log("Result is ", JSON.stringify(res, null, 2));
+		expect(res.totalCount, "totalCount").to.eql(10);
+		
+		expect(res.data, "res.data").to.be.instanceof(Array);
+		expect(res.data, "list length").to.have.lengthOf(10);
+
+		expect(res.data[0].date1, "date1").to.be.a("date");
+		expect(res.data[0].date2, "date2").to.be.a("date");
+		expect(res.data[0].int1, "int1").to.be.a("number");
+		expect(res.data[0].int2, "int2").to.be.a("number");
+		expect(res.data[0].string, "string").to.be.a("string");
+		expect(res.data[0].___date1_mp2, "___date1_mp2").to.be.undefined;
+		expect(res.data[0].___date1_quarter, "___date1_quarter").to.be.undefined;
+		
 	    });
 	});
 
@@ -261,14 +285,56 @@ describe("query-values", function() {
 	    }, function(res) {
 		console.log("Result is ", JSON.stringify(res, null, 2));
 
-		// expects are wrong at this point
-		expect(res.totalCount, "totalCount").to.eql(59);
+		expect(res.totalCount, "totalCount").to.eql(10);
 		
 		expect(res.data, "res.data").to.be.instanceof(Array);
-		expect(res.data, "list length").to.have.lengthOf(59);
+		expect(res.data, "list length").to.have.lengthOf(1);
+
+		expect(res.summary[0], "summary value").to.eql(45);
+		
 	    });
 	});
-	
+
+	it("list should group and filter by quarter without extra fields", function(tdone) {
+	    testQueryValues(tdone, {
+		filter: [
+		    ["date2.quarter", "=", 1]
+		],
+		group: [
+		    {
+			groupInterval: "month",
+			isExpanded: true,
+			selector: "date1"
+		    }
+		],
+		requireTotalCount: true
+	    }, function(res) {
+		//console.log("Result is ", JSON.stringify(res, null, 2));
+
+		expect(res.totalCount, "totalCount").to.eql(90);
+		
+		expect(res.data, "res.data").to.be.instanceof(Array);
+		expect(res.data, "list length").to.have.lengthOf(3);
+
+		for (const group of res.data) {
+		    expect(group.key, "group.key").to.not.be.undefined;
+		    expect(group.items, `group(${group.key}).items`).to.be.instanceof(Array);
+		    expect(group.items, `group(${group.key}) items list`).to.have.length.of.at.least(10); // arbitrary 
+		    expect(group.count, `group(${group.key}).count`).to.eql(group.items.length);
+		    
+		    for (const item of group.items) {
+			expect(item.___date2_mp2, "item.___date2_mp2").to.be.undefined;
+			expect(item.___date2_quarter, "item.___date2_quarter").to.be.undefined;
+			// leaving the group key in place for now, Mongo doesn't seem to have a
+			// very easy way to remove this while data is queried as part of the
+			// $group step with $push $$CURRENT
+			//expect(item.___group_key_0, "item.___group_key_0").to.be.undefined;
+		    }
+		}
+		
+	    });
+	});
+
 
 	it("list should filter with endswith", function(tdone) {
 	    testQueryValues(tdone, {
