@@ -240,7 +240,7 @@ describe("query-values", function() {
 		],
 		requireTotalCount: true
 	    }, function(res) {
-		console.log("Result is ", JSON.stringify(res, null, 2));
+		//console.log("Result is ", JSON.stringify(res, null, 2));
 		expect(res.totalCount, "totalCount").to.eql(10);
 		
 		expect(res.data, "res.data").to.be.instanceof(Array);
@@ -283,7 +283,7 @@ describe("query-values", function() {
 		}],
 		requireTotalCount: true
 	    }, function(res) {
-		console.log("Result is ", JSON.stringify(res, null, 2));
+		//console.log("Result is ", JSON.stringify(res, null, 2));
 
 		expect(res.totalCount, "totalCount").to.eql(10);
 		
