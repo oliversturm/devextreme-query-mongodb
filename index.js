@@ -199,14 +199,14 @@ function createContext(contextOptions, loadOptions) {
 	    return pipeline;
 	},
 	
-	createSkipTakePipeline: function(skip, take) {
+	createSkipTakePipeline: function() {
 	    let pipeline = [];
 	    
-	    if (skip) pipeline.push({
-    		$skip: skip
+	    if (loadOptions.skip) pipeline.push({
+    		$skip: loadOptions.skip
 	    });
-	    if (take) pipeline.push({
-    		$limit: take
+	    if (loadOptions.take) pipeline.push({
+    		$limit: loadOptions.take
 	    });
 
 	    return pipeline;
@@ -246,10 +246,10 @@ function createContext(contextOptions, loadOptions) {
 	    else return dummy;
 	},
 
-	createSortPipeline: function(sort) {
-	    if (sort) {
+	createSortPipeline: function() {
+	    if (loadOptions.sort) {
 		let sorting = {};
-		for (const sf of sort) sorting[sf.selector] = sf.desc ? -1 : 1;
+		for (const sf of loadOptions.sort) sorting[sf.selector] = sf.desc ? -1 : 1;
 		return [{
 		    $sort: sorting
 		}];
@@ -536,7 +536,7 @@ function createContext(contextOptions, loadOptions) {
 							itemDataRequired, separateCountRequired,
 							this.createSelectProjectExpression(loadOptions.select, true),
 							groupKeyPipeline,
-							itemDataRequired ? this.createSortPipeline(loadOptions.sort) : [],
+							itemDataRequired ? this.createSortPipeline() : [],
 							filterPipelineDetails, skipTakePipeline, matchPipeline);
 	    if (subGroupsRequired) {
 		for (const groupDataItem of groupData) {
@@ -742,7 +742,7 @@ function createContext(contextOptions, loadOptions) {
 	queryGroups: async function(collection) {
 	    const completeFilterPipelineDetails = this.createCompleteFilterPipeline();
 	    const summaryPipeline = this.createSummaryPipeline(loadOptions.groupSummary);
-	    const skipTakePipeline = this.createSkipTakePipeline(loadOptions.skip, loadOptions.take);
+	    const skipTakePipeline = this.createSkipTakePipeline();
 
 	    let resultObject = {
 		data: await this.queryGroup(collection, 0, this.createSummaryQueryExecutor(),
@@ -776,8 +776,8 @@ function createContext(contextOptions, loadOptions) {
 
 	querySimple: async function(collection) {
 	    const completeFilterPipelineDetails = this.createCompleteFilterPipeline();
-	    const sortPipeline = this.createSortPipeline(loadOptions.sort);
-	    const skipTakePipeline = this.createSkipTakePipeline(loadOptions.skip, loadOptions.take);
+	    const sortPipeline = this.createSortPipeline();
+	    const skipTakePipeline = this.createSkipTakePipeline();
 	    const selectPipeline = this.createSelectPipeline(loadOptions.select);
 	    const removeNestedFieldsPipeline = this.createRemoveNestedFieldsPipeline(completeFilterPipelineDetails.nestedFields);
 
@@ -817,7 +817,7 @@ async function query(collection, loadOptions = {}, options = {}) {
     const contextOptions = Object.assign(standardContextOptions, options);
     const context = createContext(contextOptions, loadOptions);
     
-    return loadOptions && loadOptions.group && loadOptions.group.length > 0 ?
+    return loadOptions.group && loadOptions.group.length > 0 ?
 	context.queryGroups(collection, loadOptions) :
 	context.querySimple(collection, loadOptions);
 }
