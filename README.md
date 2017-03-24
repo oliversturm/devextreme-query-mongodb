@@ -11,6 +11,8 @@ The library **devextreme-query-mongodb** implements the required logic to query 
 
 The supported options are outlined in the [CustomStore reference](https://js.devexpress.com/Documentation/16_1/ApiReference/Data_Layer/CustomStore/Configuration/#load). Since the dxDataGrid widget is one that utilizes complex combinations of `loadOptions` depending on its setup, there is further documentation available in [the *Use Custom Store* block of its documentation](https://js.devexpress.com/Documentation/16_1/Guide/UI_Widgets/Data_Grid/Use_Custom_Store/).
 
+In addition to the DevExpress documentation, I recommend reading [this blog post](https://community.devexpress.com/blogs/oliver/archive/2017/03/24/devextreme-real-world-patterns-mongodb-data-access.aspx), which details supported `loadOptions` and their application as implemented by *devextreme-query-mongodb*.
+
 ### Requirements
 
 **devextreme-query-mongodb** requires at least version 7.3 of Node.js, and you need to pass the `--harmony` flag when running `node` (unless you're using the latest 8.x nightly builds, where `--harmony` is not required anymore). The reason for this requirement is that **devextreme-query-mongodb** uses `async` and `await`.
@@ -46,7 +48,7 @@ async function queryData() {
 
 ### More examples
 
-Apart from the documentation linked above, I recommend you check out the tests in this repository to see additional examples for `loadOptions`.
+Apart from the documentation linked above, I recommend you check out the [tests](https://github.com/oliversturm/devextreme-query-mongodb/tree/master/tests) in this repository to see additional examples for `loadOptions`.
 
 ### Status
 
