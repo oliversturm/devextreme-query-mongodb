@@ -1188,6 +1188,55 @@ describe('query-values', function() {
       );
     });
 
+    it('month grouping should work correctly for May 1st 2017', function(
+      tdone
+    ) {
+      // mongodb aggregation operators that extract Date details work on
+      // UTC only - so they need to have a timezone offset to work with
+      // in order to deliver the correct results if the local timezone
+      // is not UTC.
+      // The test is only meaningful if there's a difference between local timezone
+      // and UTC. Unfortunately mongodb seems to use the server time to handle
+      // its persistence, so mocking a timezone from JS doesn't make any
+      // difference.
+
+      testQueryValues(
+        tdone,
+        {
+          group: [
+            {
+              selector: 'date1',
+              groupInterval: 'month'
+            }
+          ],
+          requireGroupCount: true,
+          requireTotalCount: true
+        },
+        function(res) {
+          //console.log('Result is ', JSON.stringify(res, null, 2));
+          expect(res.totalCount, 'totalCount').to.eql(1);
+          expect(res.groupCount).to.eql(1);
+          expect(res.data).to.have.lengthOf(1);
+          expect(res.data[0].key).to.eql(5); // month May after mongo $month
+        },
+        function(collection) {
+          return [
+            collection.insertOne({
+              // forgive JavaScript - this is the 1st of May
+              date1: new Date(2017, 4, 1),
+              date2: new Date(2017, 4, 1),
+              int1: 10,
+              int2: 10,
+              string: 'something'
+            })
+          ];
+        },
+        {
+          timezoneOffset: new Date().getTimezoneOffset()
+        }
+      );
+    });
+
     it('query should work correctly for May 1st 2017', function(tdone) {
       // see comment above - this test is meaningless if there's no difference
       // between local timezone and UTC. If there is a difference, the test

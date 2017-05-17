@@ -69,11 +69,19 @@ function createContext(contextOptions, loadOptions) {
             wrapGroupKey(subtractMod(prefix(selector), numericInterval))
           );
         } else {
+          // timezone adjusted field
+          const tafield = {
+            $subtract: [
+              prefix(selector),
+              contextOptions.timezoneOffset * 60 * 1000
+            ]
+          };
+
           switch (groupInterval) {
             case 'year':
               return pipe(
                 wrapGroupKey({
-                  $year: prefix(selector)
+                  $year: tafield
                 })
               );
             case 'quarter':
@@ -86,7 +94,7 @@ function createContext(contextOptions, loadOptions) {
                     ___mp2: {
                       $add: [
                         {
-                          $month: prefix(selector)
+                          $month: tafield
                         },
                         2
                       ]
@@ -98,13 +106,13 @@ function createContext(contextOptions, loadOptions) {
             case 'month':
               return pipe(
                 wrapGroupKey({
-                  $month: prefix(selector)
+                  $month: tafield
                 })
               );
             case 'day':
               return pipe(
                 wrapGroupKey({
-                  $dayOfMonth: prefix(selector)
+                  $dayOfMonth: tafield
                 })
               );
             case 'dayOfWeek':
@@ -112,7 +120,7 @@ function createContext(contextOptions, loadOptions) {
                 wrapGroupKey({
                   $subtract: [
                     {
-                      $dayOfWeek: prefix(selector) // correct in that it's sunday to saturday, but it's 1-7 (must be 0-6)
+                      $dayOfWeek: tafield // correct in that it's sunday to saturday, but it's 1-7 (must be 0-6)
                     },
                     1
                   ]
@@ -121,19 +129,19 @@ function createContext(contextOptions, loadOptions) {
             case 'hour':
               return pipe(
                 wrapGroupKey({
-                  $hour: prefix(selector)
+                  $hour: tafield
                 })
               );
             case 'minute':
               return pipe(
                 wrapGroupKey({
-                  $minute: prefix(selector)
+                  $minute: tafield
                 })
               );
             case 'second':
               return pipe(
                 wrapGroupKey({
-                  $second: prefix(selector)
+                  $second: tafield
                 })
               );
             default:
