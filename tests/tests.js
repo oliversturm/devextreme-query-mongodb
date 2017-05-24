@@ -1079,10 +1079,15 @@ describe('query-values', function() {
           expect(res.data, 'group list length').to.have.lengthOf(5);
 
           expect(res.data[0].key, 'group 1 key').to.eql(0);
+          expect(res.data[0].count, 'group 1 count').to.eql(20);
           expect(res.data[1].key, 'group 2 key').to.eql(2);
+          expect(res.data[1].count, 'group 2 count').to.eql(20);
           expect(res.data[2].key, 'group 3 key').to.eql(4);
+          expect(res.data[2].count, 'group 3 count').to.eql(20);
           expect(res.data[3].key, 'group 4 key').to.eql(6);
+          expect(res.data[3].count, 'group 4 count').to.eql(20);
           expect(res.data[4].key, 'group 5 key').to.eql(8);
+          expect(res.data[4].count, 'group 5 count').to.eql(20);
         }
       );
     });
