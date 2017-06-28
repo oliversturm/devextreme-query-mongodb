@@ -873,6 +873,659 @@ describe('query-values', function() {
       );
     });
 
+    it('list should group three levels without  items', function(tdone) {
+      testQueryValues(
+        tdone,
+        {
+          group: [
+            {
+              selector: 'int1',
+              isExpanded: false
+            },
+            {
+              selector: 'int2',
+              isExpanded: false
+            },
+            {
+              selector: 'string',
+              isExpanded: false
+            }
+          ],
+          requireTotalCount: true,
+          requireGroupCount: true
+        },
+        function(res) {
+          //console.log('Result is ', JSON.stringify(res, null, 2));
+          expect(res).to.deep.eql({
+            data: [
+              {
+                key: 0,
+                items: [
+                  {
+                    key: 0,
+                    items: [
+                      {
+                        count: 1,
+                        key: 'Item 0',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 10',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 20',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 30',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 40',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 50',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 60',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 70',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 80',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 90',
+                        items: null
+                      }
+                    ],
+                    count: 10
+                  }
+                ],
+                count: 1
+              },
+              {
+                key: 1,
+                items: [
+                  {
+                    key: 1,
+                    items: [
+                      {
+                        count: 1,
+                        key: 'Item 1',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 11',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 21',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 31',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 41',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 51',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 61',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 71',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 81',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 91',
+                        items: null
+                      }
+                    ],
+                    count: 10
+                  }
+                ],
+                count: 1
+              },
+              {
+                key: 2,
+                items: [
+                  {
+                    key: 2,
+                    items: [
+                      {
+                        count: 1,
+                        key: 'Item 12',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 2',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 22',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 32',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 42',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 52',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 62',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 72',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 82',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 92',
+                        items: null
+                      }
+                    ],
+                    count: 10
+                  }
+                ],
+                count: 1
+              },
+              {
+                key: 3,
+                items: [
+                  {
+                    key: 3,
+                    items: [
+                      {
+                        count: 1,
+                        key: 'Item 13',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 23',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 3',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 33',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 43',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 53',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 63',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 73',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 83',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 93',
+                        items: null
+                      }
+                    ],
+                    count: 10
+                  }
+                ],
+                count: 1
+              },
+              {
+                key: 4,
+                items: [
+                  {
+                    key: 4,
+                    items: [
+                      {
+                        count: 1,
+                        key: 'Item 14',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 24',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 34',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 4',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 44',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 54',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 64',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 74',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 84',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 94',
+                        items: null
+                      }
+                    ],
+                    count: 10
+                  }
+                ],
+                count: 1
+              },
+              {
+                key: 5,
+                items: [
+                  {
+                    key: 0,
+                    items: [
+                      {
+                        count: 1,
+                        key: 'Item 15',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 25',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 35',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 45',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 5',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 55',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 65',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 75',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 85',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 95',
+                        items: null
+                      }
+                    ],
+                    count: 10
+                  }
+                ],
+                count: 1
+              },
+              {
+                key: 6,
+                items: [
+                  {
+                    key: 1,
+                    items: [
+                      {
+                        count: 1,
+                        key: 'Item 16',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 26',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 36',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 46',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 56',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 6',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 66',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 76',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 86',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 96',
+                        items: null
+                      }
+                    ],
+                    count: 10
+                  }
+                ],
+                count: 1
+              },
+              {
+                key: 7,
+                items: [
+                  {
+                    key: 2,
+                    items: [
+                      {
+                        count: 1,
+                        key: 'Item 17',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 27',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 37',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 47',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 57',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 67',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 7',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 77',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 87',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 97',
+                        items: null
+                      }
+                    ],
+                    count: 10
+                  }
+                ],
+                count: 1
+              },
+              {
+                key: 8,
+                items: [
+                  {
+                    key: 3,
+                    items: [
+                      {
+                        count: 1,
+                        key: 'Item 18',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 28',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 38',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 48',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 58',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 68',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 78',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 8',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 88',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 98',
+                        items: null
+                      }
+                    ],
+                    count: 10
+                  }
+                ],
+                count: 1
+              },
+              {
+                key: 9,
+                items: [
+                  {
+                    key: 4,
+                    items: [
+                      {
+                        count: 1,
+                        key: 'Item 19',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 29',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 39',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 49',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 59',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 69',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 79',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 89',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 9',
+                        items: null
+                      },
+                      {
+                        count: 1,
+                        key: 'Item 99',
+                        items: null
+                      }
+                    ],
+                    count: 10
+                  }
+                ],
+                count: 1
+              }
+            ],
+            groupCount: 10,
+            totalCount: 100
+          });
+        }
+      );
+    });
+
     it('list should calculate total summaries group query', function(tdone) {
       testQueryValues(
         tdone,
