@@ -3,11 +3,12 @@ export PATH := ./node_modules/.bin:$(PATH)
 
 SRC = index.js
 
-TESTS = $(wildcard tests/*.js)
+TESTS = $(wildcard src/tests/*.js)
 
 .PHONY: test publish
 
 test:
+	npm run prepare
 	ID=`docker run -p=27017:27017 -d mongo:latest`; \
 	   sleep 2; \
 	mocha --harmony $(TESTS) ; \
