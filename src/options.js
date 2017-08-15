@@ -186,7 +186,7 @@ function takeOptions(qry) {
     qry,
     'take',
     take =>
-      take > 0
+      take >= 0
         ? {
             take
           }
@@ -200,7 +200,7 @@ function skipOptions(qry) {
     qry,
     'skip',
     skip =>
-      skip > 0
+      skip >= 0
         ? {
             skip
           }

@@ -156,7 +156,7 @@ function check(qry, onames, checker) {
 
 function takeOptions(qry) {
   return check(qry, 'take', function (take) {
-    return take > 0 ? {
+    return take >= 0 ? {
       take: take
     } : null;
   }, function (take) {
@@ -166,7 +166,7 @@ function takeOptions(qry) {
 
 function skipOptions(qry) {
   return check(qry, 'skip', function (skip) {
-    return skip > 0 ? {
+    return skip >= 0 ? {
       skip: skip
     } : null;
   }, function (skip) {

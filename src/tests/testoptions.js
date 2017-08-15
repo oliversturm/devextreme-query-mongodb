@@ -164,4 +164,93 @@ describe('getOptions', function() {
       }
     );
   });
+
+  it('summaryQueryLimit, skip, take, requireTotalCount, totalSummary, tzOffset', function() {
+    test(
+      'summaryQueryLimit=500&skip=0&take=20&requireTotalCount=true&totalSummary=%5B%7B%22selector%22%3A%22date1%22%2C%22summaryType%22%3A%22max%22%7D%2C%7B%22selector%22%3A%22int1%22%2C%22summaryType%22%3A%22avg%22%7D%2C%7B%22selector%22%3A%22int1%22%2C%22summaryType%22%3A%22sum%22%7D%5D&tzOffset=-60',
+      {
+        errors: [],
+        loadOptions: {
+          skip: 0,
+          take: 20,
+          requireTotalCount: true,
+          totalSummary: [
+            {
+              selector: 'date1',
+              summaryType: 'max'
+            },
+            {
+              selector: 'int1',
+              summaryType: 'avg'
+            },
+            {
+              selector: 'int1',
+              summaryType: 'sum'
+            }
+          ]
+        },
+        processingOptions: {
+          timezoneOffset: -60,
+          summaryQueryLimit: 500
+        }
+      }
+    );
+  });
+
+  it('summaryQueryLimit, skip, take, requireTotalCount, totalSummary, group, requireGroupCount, groupSummary, tzOffset', function() {
+    test(
+      'summaryQueryLimit=500&skip=0&take=20&requireTotalCount=true&totalSummary=%5B%7B%22selector%22%3A%22date1%22%2C%22summaryType%22%3A%22max%22%7D%2C%7B%22selector%22%3A%22int1%22%2C%22summaryType%22%3A%22avg%22%7D%2C%7B%22selector%22%3A%22int1%22%2C%22summaryType%22%3A%22sum%22%7D%5D&group=%5B%7B%22selector%22%3A%22int1%22%2C%22desc%22%3Afalse%2C%22isExpanded%22%3Afalse%7D%5D&requireGroupCount=true&groupSummary=%5B%7B%22selector%22%3A%22date1%22%2C%22summaryType%22%3A%22min%22%7D%2C%7B%22selector%22%3A%22int1%22%2C%22summaryType%22%3A%22avg%22%7D%2C%7B%22selector%22%3A%22int1%22%2C%22summaryType%22%3A%22sum%22%7D%2C%7B%22summaryType%22%3A%22count%22%7D%5D&tzOffset=-60',
+      {
+        errors: [],
+        loadOptions: {
+          skip: 0,
+          take: 20,
+          requireTotalCount: true,
+          totalSummary: [
+            {
+              selector: 'date1',
+              summaryType: 'max'
+            },
+            {
+              selector: 'int1',
+              summaryType: 'avg'
+            },
+            {
+              selector: 'int1',
+              summaryType: 'sum'
+            }
+          ],
+          requireGroupCount: true,
+          group: [
+            {
+              selector: 'int1',
+              desc: false,
+              isExpanded: false
+            }
+          ],
+          groupSummary: [
+            {
+              selector: 'date1',
+              summaryType: 'min'
+            },
+            {
+              selector: 'int1',
+              summaryType: 'avg'
+            },
+            {
+              selector: 'int1',
+              summaryType: 'sum'
+            },
+            {
+              summaryType: 'count'
+            }
+          ]
+        },
+        processingOptions: {
+          timezoneOffset: -60,
+          summaryQueryLimit: 500
+        }
+      }
+    );
+  });
 });
