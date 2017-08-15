@@ -26,7 +26,7 @@ function fixFilterAndSearch(schema) {
       schema[f[0]] &&
       operators.includes(f[1])
     )
-      return fixValue(schema[f[0]], f[2]);
+      return [f[0], f[1], fixValue(schema[f[0]], f[2])];
     else return f.map(e => fixFilter(e));
   }
 
@@ -47,11 +47,20 @@ function fixFilterAndSearch(schema) {
       qry.searchValue
     );
 
-    return {
-      ...qry,
-      filter: fixedFilter,
-      searchValue: fixedSearchValue
-    };
+    return Object.assign(
+      {},
+      qry,
+      fixedFilter
+        ? {
+            filter: fixedFilter
+          }
+        : {},
+      fixedSearchValue
+        ? {
+            searchValue: fixedSearchValue
+          }
+        : {}
+    );
   };
 }
 
@@ -114,6 +123,8 @@ function validateAll(list, checker, short = true) {
 }
 
 function parseOrFix(arg) {
+  // console.log(`parseOrFix with ${JSON.stringify(arg)}`);
+
   return typeof arg === 'string'
     ? JSON.parse(arg)
     : valueFixers.fixObject(
@@ -149,15 +160,15 @@ function check(
   const options = typeof onames === 'string' ? [onames] : onames;
   const allFound = qry && options.reduce((r, v) => r && !!qry[v], true);
 
-  console.log(`Options: ${JSON.stringify(options)}, allFound: ${allFound}`);
+  // console.log(`Options: ${JSON.stringify(options)}, allFound: ${allFound}`);
 
   if (!allFound) return defaultValue;
   try {
     const vals = options.map(o => converter(qry[o], o));
-    console.log('Vals: ', JSON.stringify(vals));
+    // console.log('Vals: ', JSON.stringify(vals));
 
     const checkResult = checker(...vals);
-    console.log('Check results: ', JSON.stringify(checkResult));
+    // console.log('Check results: ', JSON.stringify(checkResult));
     return checkResult
       ? wrapper(checkResult)
       : {
@@ -228,47 +239,54 @@ function sortOptions(qry) {
 }
 
 function groupOptions(qry) {
-  return check(qry, 'group', group => {
-    const groupOptions = parseOrFix(group);
-    if (Array.isArray(groupOptions)) {
-      if (groupOptions.length > 0) {
-        const vr = validateAll(groupOptions, groupOptionsChecker);
-        if (vr.valid)
-          return mergeResults([
-            {
-              group: groupOptions
-            },
-            check(
-              qry,
-              'requireGroupCount',
-              requireGroupCount =>
-                requireGroupCount
-                  ? {
-                      requireGroupCount
-                    }
-                  : null,
-              requireGroupCount => representsTrue(requireGroupCount)
-            ),
-            check(qry, 'groupSummary', groupSummary => {
-              const gsOptions = parseOrFix(groupSummary);
-              if (Array.isArray(gsOptions)) {
-                if (gsOptions.length > 0) {
-                  const vr = validateAll(gsOptions, summaryOptionsChecker);
-                  if (vr.valid)
-                    return {
-                      groupSummary: gsOptions
-                    };
-                  else
-                    throw `Group summary parameter validation errors: ${JSON.stringify(vr.errors)}`;
-                } else return {}; // ignore empty array
-              } else return null;
-            })
-          ]);
-        else
-          throw `Group parameter validation errors: ${JSON.stringify(vr.errors)}`;
-      } else return {}; // ignore empty array
-    } else return null;
-  });
+  return check(
+    qry,
+    'group',
+    group => {
+      const groupOptions = parseOrFix(group);
+      if (Array.isArray(groupOptions)) {
+        if (groupOptions.length > 0) {
+          const vr = validateAll(groupOptions, groupOptionsChecker);
+          if (vr.valid)
+            return mergeResults([
+              wrapLoadOptions({
+                group: groupOptions
+              }),
+              check(
+                qry,
+                'requireGroupCount',
+                requireGroupCount =>
+                  requireGroupCount
+                    ? {
+                        requireGroupCount
+                      }
+                    : null,
+                requireGroupCount => representsTrue(requireGroupCount)
+              ),
+              check(qry, 'groupSummary', groupSummary => {
+                const gsOptions = parseOrFix(groupSummary);
+                if (Array.isArray(gsOptions)) {
+                  if (gsOptions.length > 0) {
+                    const vr = validateAll(gsOptions, summaryOptionsChecker);
+                    if (vr.valid)
+                      return {
+                        groupSummary: gsOptions
+                      };
+                    else
+                      throw `Group summary parameter validation errors: ${JSON.stringify(vr.errors)}`;
+                  } else return {}; // ignore empty array
+                } else return null;
+              })
+            ]);
+          else
+            throw `Group parameter validation errors: ${JSON.stringify(vr.errors)}`;
+        } else return {}; // ignore empty array
+      } else return null;
+    },
+    undefined,
+    undefined,
+    o => o /* deactivate wrapper for the result */
+  );
 }
 
 function totalSummaryOptions(qry) {
@@ -388,7 +406,7 @@ function getOptions(qry, schema) {
 
   const fixedQry = schema ? fixFilterAndSearch(schema)(qry) : qry;
 
-  console.log('Fixed query: ', JSON.stringify(fixedQry, null, 2));
+  // console.log('Fixed query: ', JSON.stringify(fixedQry, null, 2));
 
   return mergeResults(
     [
@@ -408,5 +426,8 @@ function getOptions(qry, schema) {
 }
 
 module.exports = {
-  getOptions
+  getOptions,
+  private: {
+    fixFilterAndSearch
+  }
 };

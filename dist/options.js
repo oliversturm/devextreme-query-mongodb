@@ -20,7 +20,7 @@ function fixFilterAndSearch(schema) {
 
   function fixFilter(f) {
     if (!f || !Array.isArray(f)) return f;
-    if (f.length === 3 && typeof f[2] === 'string' && schema[f[0]] && operators.includes(f[1])) return fixValue(schema[f[0]], f[2]);else return f.map(function (e) {
+    if (f.length === 3 && typeof f[2] === 'string' && schema[f[0]] && operators.includes(f[1])) return [f[0], f[1], fixValue(schema[f[0]], f[2])];else return f.map(function (e) {
       return fixFilter(e);
     });
   }
@@ -38,10 +38,11 @@ function fixFilterAndSearch(schema) {
     var fixedFilter = fixFilter(qry.filter);
     var fixedSearchValue = fixSearch(qry.searchExpr, qry.searchOperation, qry.searchValue);
 
-    return _extends({}, qry, {
-      filter: fixedFilter,
+    return Object.assign({}, qry, fixedFilter ? {
+      filter: fixedFilter
+    } : {}, fixedSearchValue ? {
       searchValue: fixedSearchValue
-    });
+    } : {});
   };
 }
 
@@ -100,6 +101,7 @@ function validateAll(list, checker) {
 }
 
 function parseOrFix(arg) {
+
   return typeof arg === 'string' ? JSON.parse(arg) : valueFixers.fixObject(arg, valueFixers.defaultFixers.concat(valueFixers.fixBool));
 }
 
@@ -131,17 +133,15 @@ function check(qry, onames, checker) {
     return r && !!qry[v];
   }, true);
 
-  console.log('Options: ' + JSON.stringify(options) + ', allFound: ' + allFound);
-
   if (!allFound) return defaultValue;
   try {
     var vals = options.map(function (o) {
       return converter(qry[o], o);
     });
-    console.log('Vals: ', JSON.stringify(vals));
+
 
     var checkResult = checker.apply(undefined, _toConsumableArray(vals));
-    console.log('Check results: ', JSON.stringify(checkResult));
+
     return checkResult ? wrapper(checkResult) : {
       errors: options.map(function (o) {
         return 'Invalid \'' + o + '\': ' + qry[o];
@@ -202,9 +202,9 @@ function groupOptions(qry) {
     if (Array.isArray(groupOptions)) {
       if (groupOptions.length > 0) {
         var vr = validateAll(groupOptions, groupOptionsChecker);
-        if (vr.valid) return mergeResults([{
+        if (vr.valid) return mergeResults([wrapLoadOptions({
           group: groupOptions
-        }, check(qry, 'requireGroupCount', function (requireGroupCount) {
+        }), check(qry, 'requireGroupCount', function (requireGroupCount) {
           return requireGroupCount ? {
             requireGroupCount: requireGroupCount
           } : null;
@@ -223,6 +223,8 @@ function groupOptions(qry) {
         })]);else throw 'Group parameter validation errors: ' + JSON.stringify(vr.errors);
       } else return {};
     } else return null;
+  }, undefined, undefined, function (o) {
+    return o;
   });
 }
 
@@ -313,13 +315,14 @@ function getOptions(qry, schema) {
 
   var fixedQry = schema ? fixFilterAndSearch(schema)(qry) : qry;
 
-  console.log('Fixed query: ', JSON.stringify(fixedQry, null, 2));
-
   return mergeResults([takeOptions, skipOptions, totalCountOptions, sortOptions, groupOptions, totalSummaryOptions, filterOptions, searchOptions, selectOptions, timezoneOptions, summaryQueryLimitOptions].map(function (f) {
     return f(fixedQry);
   }));
 }
 
 module.exports = {
-  getOptions: getOptions
+  getOptions: getOptions,
+  private: {
+    fixFilterAndSearch: fixFilterAndSearch
+  }
 };

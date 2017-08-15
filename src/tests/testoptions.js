@@ -3,15 +3,47 @@ const expect = chai.expect;
 const assert = chai.assert;
 const qs = require('qs');
 
-const getOptions = require('../../dist/options').getOptions;
+const options = require('../../dist/options');
+const getOptions = options.getOptions;
+const fixFilterAndSearch = options.private.fixFilterAndSearch;
 
-function test(queryString, expectedResult) {
-  const result = getOptions(qs.parse(queryString));
-  console.log(`Testing query ${queryString}`);
-  console.log('Result: ', JSON.stringify(result, null, 2));
+function test(queryString, expectedResult, schema) {
+  const result = getOptions(qs.parse(queryString), schema);
+  // console.log(`Testing query ${queryString}`);
+  // console.log('Result: ', JSON.stringify(result, null, 2));
 
   expect(result).to.eql(expectedResult);
 }
+
+describe('fixFilterAndSearch', function() {
+  it('fixes filter int', function() {
+    expect(
+      fixFilterAndSearch({
+        int: 'int'
+      })({
+        filter: [['int', '=', '34']]
+      })
+    ).to.eql({
+      filter: [['int', '=', 34]]
+    });
+  });
+
+  it('fixes search int', function() {
+    expect(
+      fixFilterAndSearch({
+        int: 'int'
+      })({
+        searchExpr: 'int',
+        searchOperation: '=',
+        searchValue: '34'
+      })
+    ).to.eql({
+      searchExpr: 'int',
+      searchOperation: '=',
+      searchValue: 34
+    });
+  });
+});
 
 describe('getOptions', function() {
   it('take and total count', function() {
@@ -25,7 +57,32 @@ describe('getOptions', function() {
     });
   });
 
-  it.only('sort, take and total count', function() {
+  it('take and total count with tzOffset', function() {
+    test('take=10&requireTotalCount=true&tzOffset=-60', {
+      errors: [],
+      loadOptions: {
+        take: 10,
+        requireTotalCount: true
+      },
+      processingOptions: {
+        timezoneOffset: -60
+      }
+    });
+  });
+
+  it('take, skip, total count', function() {
+    test('take=10&requireTotalCount=true&skip=30', {
+      errors: [],
+      loadOptions: {
+        take: 10,
+        skip: 30,
+        requireTotalCount: true
+      },
+      processingOptions: {}
+    });
+  });
+
+  it('sort, take and total count', function() {
     test(
       'sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&take=10&requireTotalCount=true',
       {
@@ -44,10 +101,67 @@ describe('getOptions', function() {
       }
     );
   });
-});
 
-// /data/v1/values?sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&requireTotalCount=true&group%5B0%5D%5Bselector%5D=date2&group%5B0%5D%5BisExpanded%5D=false&requireGroupCount=true
-// /data/v1/values?sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&requireTotalCount=true&group%5B0%5D%5Bselector%5D=date2&group%5B0%5D%5BisExpanded%5D=false&requireGroupCount=true
-// /data/v1/values?sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&filter%5B0%5D%5B0%5D=date2&filter%5B0%5D%5B1%5D=%3D&filter%5B0%5D%5B2%5D=2017-07-13T00%3A00%3A00.000Z
-// /data/v1/values?sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&take=10&requireTotalCount=true&skip=30
-// /data/v1/values?take=10&requireTotalCount=true&filter%5B0%5D%5B0%5D=int1&filter%5B0%5D%5B1%5D=%3D&filter%5B0%5D%5B2%5D=4
+  it('total count, group, group count', function() {
+    test(
+      'sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&requireTotalCount=true&group%5B0%5D%5Bselector%5D=date2&group%5B0%5D%5BisExpanded%5D=false&requireGroupCount=true',
+      {
+        errors: [],
+        loadOptions: {
+          sort: [
+            {
+              selector: 'date2',
+              desc: false
+            }
+          ],
+          requireTotalCount: true,
+          group: [
+            {
+              selector: 'date2',
+              isExpanded: false
+            }
+          ],
+          requireGroupCount: true
+        },
+        processingOptions: {}
+      }
+    );
+  });
+
+  it('sort, filter with date', function() {
+    test(
+      'sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&filter%5B0%5D%5B0%5D=date2&filter%5B0%5D%5B1%5D=%3D&filter%5B0%5D%5B2%5D=2017-07-13T00%3A00%3A00.000Z',
+      {
+        errors: [],
+        loadOptions: {
+          sort: [
+            {
+              selector: 'date2',
+              desc: false
+            }
+          ],
+          filter: [['date2', '=', new Date(Date.parse('2017-07-13'))]]
+        },
+        processingOptions: {}
+      }
+    );
+  });
+
+  it('take, total count, filter with int', function() {
+    test(
+      'take=10&requireTotalCount=true&filter%5B0%5D%5B0%5D=int1&filter%5B0%5D%5B1%5D=%3D&filter%5B0%5D%5B2%5D=4',
+      {
+        errors: [],
+        loadOptions: {
+          take: 10,
+          requireTotalCount: true,
+          filter: [['int1', '=', 4]]
+        },
+        processingOptions: {}
+      },
+      {
+        int1: 'int'
+      }
+    );
+  });
+});
