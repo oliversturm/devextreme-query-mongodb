@@ -5,6 +5,9 @@
   "main": "index.js",
   "files": [
     "index.js",
+    "options.js",
+    "dist",
+    "src",
     "LICENSE",
     "README.md"
   ],
