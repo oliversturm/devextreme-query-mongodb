@@ -9,6 +9,17 @@ The library **devextreme-query-mongodb** implements the required logic to query 
 
 ### Requirements
 
+#### For v2.x
+
+In v2, the library is published with babel-compiled files (in the dist) folder, which are used by default. This provides broader compatibility, but it introduces a requirement for `babel-polyfill`. To satisfy this, you should add a dependency to `babel-polyfill` to your project (`npm install --save babel-polyfill`) and initialize the polyfill before you load **devextreme-query-mongodb**:
+
+```js
+require('babel-polyfill');
+const query = require('devextreme-query-mongodb');
+```
+
+#### For v1.x
+
 **devextreme-query-mongodb** requires at least version 7.3 of Node.js, and you need to pass the `--harmony` flag when running `node` (unless you're using the latest 8.x nightly builds, where `--harmony` is not required anymore). The reason for this requirement is that **devextreme-query-mongodb** uses `async` and `await`.
 
 ### Installing **devextreme-query-mongodb**
