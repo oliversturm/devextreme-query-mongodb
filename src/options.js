@@ -402,7 +402,7 @@ function mergeResults(results) {
 }
 
 function getOptions(qry, schema) {
-  if (!qry) return null;
+  if (!qry) return undefined;
 
   const fixedQry = schema ? fixFilterAndSearch(schema)(qry) : qry;
 
