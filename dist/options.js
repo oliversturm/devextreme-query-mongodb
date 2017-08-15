@@ -311,7 +311,7 @@ function mergeResults(results) {
 }
 
 function getOptions(qry, schema) {
-  if (!qry) return null;
+  if (!qry) return undefined;
 
   var fixedQry = schema ? fixFilterAndSearch(schema)(qry) : qry;
 
