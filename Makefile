@@ -3,14 +3,23 @@ export PATH := ./node_modules/.bin:$(PATH)
 
 SRC = index.js
 
-TESTS = $(wildcard tests/*.js)
+TESTS = $(wildcard src/tests/*.js)
 
 .PHONY: test publish
 
 test:
+	npm run prepare
 	ID=`docker run -p=27017:27017 -d mongo:latest`; \
 	   sleep 2; \
 	mocha --harmony $(TESTS) ; \
+	docker kill $$ID
+
+test-coverage:
+	npm run prepare
+	ID=`docker run -p=27017:27017 -d mongo:latest`; \
+	   sleep 2; \
+	nyc --reporter=text mocha --harmony $(TESTS) ; \
+	nyc report --reporter=lcov ; \
 	docker kill $$ID
 
 publish: 

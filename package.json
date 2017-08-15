@@ -9,7 +9,7 @@
     "README.md"
   ],
   "scripts": {
-    "test": "make test"
+    "prepare": "babel src --ignore tests --out-dir ./dist"
   },
   "repository": {
     "type": "git",
@@ -28,11 +28,24 @@
   "engines": {
     "node": ">=7.3"
   },
-  "dependencies": {},
+  "dependencies": {
+    "parambulator": "^1.5.2",
+    "value-fixers": "^1.0.0"
+  },
   "devDependencies": {
+    "babel-cli": "^6.6.4",
+    "babel-core": "^6.7.4",
+    "babel-eslint": "^6.0.2",
+    "babel-plugin-remove-comments": "^2.0.0",
+    "babel-plugin-transform-es2015-modules-umd": "^6.6.5",
+    "babel-plugin-transform-object-rest-spread": "^6.23.0",
+    "babel-polyfill": "^6.7.4",
+    "babel-preset-env": "^1.6.0",
     "chai": "^3.5.0",
     "eslint": "^3.15.0",
     "mocha": "^3.2.0",
-    "mongodb": "^2.2.22"
+    "mongodb": "^2.2.22",
+    "nyc": "^11.1.0",
+    "qs": "^6.4.0"
   }
 }
