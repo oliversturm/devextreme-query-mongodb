@@ -1,18 +1,14 @@
+/* global describe, it */
+
 const chai = require('chai');
 const expect = chai.expect;
-const assert = chai.assert;
 const MongoClient = require('mongodb').MongoClient;
 
 const query = require('..');
 
 const TESTRECORD_COUNT = 100;
 
-function db(f) {
-  MongoClient.connect('mongodb://localhost:27017/dxtqutests', (err, db) => {
-    if (err) throw err;
-    f(db);
-  });
-}
+const db = () => MongoClient.connect('mongodb://localhost:27017/dxtqutests');
 
 function testQueryValues(
   tdone,
@@ -25,35 +21,34 @@ function testQueryValues(
     return new Date(start + addDays * (24 * 60 * 60 * 1000));
   }
 
-  db(db => {
-    db.dropDatabase((err, res) => {
-      const values = db.collection('values');
-      const currentYear = 2017;
-      const currentYearStart = new Date(currentYear, 0, 1).valueOf();
-      const nextYearStart = new Date(currentYear + 1, 0, 1).valueOf();
+  db()
+    .then(db =>
+      db.dropDatabase().then(() => {
+        const values = db.collection('values');
+        const currentYear = 2017;
+        const currentYearStart = new Date(currentYear, 0, 1).valueOf();
+        const nextYearStart = new Date(currentYear + 1, 0, 1).valueOf();
 
-      Promise.all(
-        getTestDataPromises
-          ? getTestDataPromises(values)
-          : Array.from(new Array(TESTRECORD_COUNT), (v, i) => i).map(n =>
-              values.insertOne({
-                date1: date(currentYearStart, n),
-                date2: date(nextYearStart, n),
-                int1: n % 10,
-                int2: n % 5,
-                string: 'Item ' + n
-              })
-            )
-      ).then(async () => {
-        try {
-          test(await query(values, loadOptions, contextOptions));
-          tdone();
-        } catch (err) {
-          tdone(err);
-        }
-      });
-    });
-  });
+        return Promise.all(
+          getTestDataPromises
+            ? getTestDataPromises(values)
+            : Array.from(new Array(TESTRECORD_COUNT), (v, i) => i).map(n =>
+                values.insertOne({
+                  date1: date(currentYearStart, n),
+                  date2: date(nextYearStart, n),
+                  int1: n % 10,
+                  int2: n % 5,
+                  string: 'Item ' + n
+                })
+              )
+        ).then(() =>
+          query(values, loadOptions, contextOptions)
+            .then(test)
+            .then(() => tdone())
+        );
+      })
+    )
+    .catch(err => tdone(err));
 }
 
 describe('query-values', function() {
@@ -344,9 +339,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group and filter by quarter without extra fields', function(
-      tdone
-    ) {
+    it('list should group and filter by quarter without extra fields', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -427,9 +420,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should filter with endswith, no results, total summary defined', function(
-      tdone
-    ) {
+    it('list should filter with endswith, no results, total summary defined', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -453,9 +444,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should calculate total summaries for simple queries', function(
-      tdone
-    ) {
+    it('list should calculate total summaries for simple queries', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -816,9 +805,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group two levels without bottom-level items', function(
-      tdone
-    ) {
+    it('list should group two levels without bottom-level items', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -1745,9 +1732,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group with groupInterval quarter and summaries', function(
-      tdone
-    ) {
+    it('list should group with groupInterval quarter and summaries', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -1846,9 +1831,7 @@ describe('query-values', function() {
       );
     });
 
-    it('month grouping should work correctly for May 1st 2017', function(
-      tdone
-    ) {
+    it('month grouping should work correctly for May 1st 2017', function(tdone) {
       // mongodb aggregation operators that extract Date details work on
       // UTC only - so they need to have a timezone offset to work with
       // in order to deliver the correct results if the local timezone
