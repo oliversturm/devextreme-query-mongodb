@@ -1802,6 +1802,13 @@ describe('query-values', function() {
       // its persistence, so mocking a timezone from JS doesn't make any
       // difference.
 
+      // I have noticed that this test fails right now (2017-12-11) because the Docker
+      // image I run for Mongo doesn't seem to know what the correct time zone is...
+      // This wouldn't be an issue in real life since we can assume that server
+      // time zones and dst are going to change according to the real world, but it
+      // does make it clear that it's not easy passing the "correct" timezoneOffset
+      // from the client.
+
       testQueryValues(
         tdone,
         {
@@ -1840,6 +1847,13 @@ describe('query-values', function() {
       // and UTC. Unfortunately mongodb seems to use the server time to handle
       // its persistence, so mocking a timezone from JS doesn't make any
       // difference.
+
+      // I have noticed that this test fails right now (2017-12-11) because the Docker
+      // image I run for Mongo doesn't seem to know what the correct time zone is...
+      // This wouldn't be an issue in real life since we can assume that server
+      // time zones and dst are going to change according to the real world, but it
+      // does make it clear that it's not easy passing the "correct" timezoneOffset
+      // from the client.
 
       testQueryValues(
         tdone,
