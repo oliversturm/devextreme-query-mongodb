@@ -10,14 +10,16 @@ const {
   createSkipTakePipeline,
   createCountPipeline,
   createMatchPipeline,
-  createSortPipeline
+  createSortPipeline,
+  createSummaryPipeline
 } = pipelines;
 const {
   createGroupStagePipeline,
   construct,
   constructRegex,
   parseFilter,
-  createFilterPipeline
+  createFilterPipeline,
+  createSearchPipeline
 } = pipelines.testing;
 
 suite('pipelines', function() {
@@ -647,6 +649,58 @@ suite('pipelines', function() {
           { selector: 'field2' }
         ]),
         [{ $sort: { field1: -1, field2: 1 } }]
+      );
+    });
+  });
+
+  suite('createSummaryPipeline', function() {
+    test('works', function() {
+      assert.deepEqual(
+        createSummaryPipeline([
+          { summaryType: 'min', selector: 'thing' },
+          { summaryType: 'max', selector: 'other' },
+          { summaryType: 'invalid', selector: 'dontknow' },
+          { summaryType: 'count' }
+        ]),
+        [
+          {
+            $group: {
+              ___minthing: { $min: '$thing' },
+              ___maxother: { $max: '$other' },
+              ___count: { $sum: 1 },
+              _id: null
+            }
+          }
+        ]
+      );
+    });
+  });
+
+  suite('createSearchPipeline', function() {
+    test('simple values', function() {
+      assert.deepEqual(createSearchPipeline('thing', '=', 42), {
+        pipeline: [{ $match: { thing: { $eq: 42 } } }],
+        fieldList: ['thing']
+      });
+    });
+
+    test('list of expr', function() {
+      assert.deepEqual(
+        createSearchPipeline(['thing', 'other', 'outlandish'], '=', 42),
+        {
+          pipeline: [
+            {
+              $match: {
+                $or: [
+                  { thing: { $eq: 42 } },
+                  { other: { $eq: 42 } },
+                  { outlandish: { $eq: 42 } }
+                ]
+              }
+            }
+          ],
+          fieldList: ['thing', 'other', 'outlandish']
+        }
       );
     });
   });

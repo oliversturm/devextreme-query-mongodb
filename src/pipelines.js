@@ -424,22 +424,19 @@ const createSummaryPipeline = summary => {
     for (const s of summary) {
       switch (s.summaryType) {
         case 'sum':
-          gc['___sum' + s.selector] = { $sum: '$' + s.selector };
-          break;
         case 'avg':
-          gc['___avg' + s.selector] = { $avg: '$' + s.selector };
-          break;
         case 'min':
-          gc['___min' + s.selector] = { $min: '$' + s.selector };
-          break;
         case 'max':
-          gc['___max' + s.selector] = { $max: '$' + s.selector };
+          gc[`___${s.summaryType}${s.selector}`] = {
+            [`$${s.summaryType}`]: `$${s.selector}`
+          };
           break;
         case 'count':
           gc.___count = { $sum: 1 };
           break;
         default:
-          console.error(`Invalid summary type ${s.summaryType}, ignoring`);
+          console.error(`Invalid summary type '${s.summaryType}', ignoring`);
+          break;
       }
     }
     return [
@@ -661,11 +658,13 @@ module.exports = {
   createCountPipeline,
   createMatchPipeline,
   createSortPipeline,
+  createSummaryPipeline,
   testing: {
     createGroupStagePipeline,
     construct,
     constructRegex,
     parseFilter,
-    createFilterPipeline
+    createFilterPipeline,
+    createSearchPipeline
   }
 };
