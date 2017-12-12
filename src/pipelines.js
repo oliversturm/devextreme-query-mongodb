@@ -667,6 +667,7 @@ module.exports = {
     constructRegex,
     parseFilter,
     createFilterPipeline,
-    createSearchPipeline
+    createSearchPipeline,
+    checkNestedField
   }
 };

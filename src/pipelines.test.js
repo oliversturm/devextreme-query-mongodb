@@ -21,7 +21,8 @@ const {
   constructRegex,
   parseFilter,
   createFilterPipeline,
-  createSearchPipeline
+  createSearchPipeline,
+  checkNestedField
 } = pipelines.testing;
 
 suite('pipelines', function() {
@@ -737,6 +738,28 @@ suite('pipelines', function() {
           }
         }
       ]);
+    });
+  });
+
+  suite('checkNestedField', function() {
+    test('Quarter', function() {
+      assert.deepEqual(checkNestedField('field.Quarter'), {
+        base: 'field',
+        nested: 'Quarter',
+        filterFieldName: '___field_Quarter'
+      });
+    });
+
+    test('year', function() {
+      assert.deepEqual(checkNestedField('field.year'), {
+        base: 'field',
+        nested: 'year',
+        filterFieldName: '___field_year'
+      });
+    });
+
+    test('no match', function() {
+      assert.isUndefined(checkNestedField('field.other'));
     });
   });
 });
