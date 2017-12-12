@@ -9,7 +9,8 @@ const {
   createGroupingPipeline,
   createSkipTakePipeline,
   createCountPipeline,
-  createMatchPipeline
+  createMatchPipeline,
+  createSortPipeline
 } = pipelines;
 const {
   createGroupStagePipeline,
@@ -635,6 +636,18 @@ suite('pipelines', function() {
         pipeline: [],
         fieldList: []
       });
+    });
+  });
+
+  suite('createSortPipeline', function() {
+    test('works', function() {
+      assert.deepEqual(
+        createSortPipeline([
+          { selector: 'field1', desc: true },
+          { selector: 'field2' }
+        ]),
+        [{ $sort: { field1: -1, field2: 1 } }]
+      );
     });
   });
 });

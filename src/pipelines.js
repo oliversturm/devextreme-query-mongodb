@@ -406,11 +406,11 @@ const createFilterPipeline = filter => {
   } else return dummy;
 };
 
-const createSortPipeline = () =>
-  loadOptions.sort
+const createSortPipeline = sort =>
+  sort
     ? [
         {
-          $sort: loadOptions.sort.reduce(
+          $sort: sort.reduce(
             (r, v) => ({ ...r, [v.selector]: v.desc ? -1 : 1 }),
             {}
           )
@@ -660,6 +660,7 @@ module.exports = {
   createSkipTakePipeline,
   createCountPipeline,
   createMatchPipeline,
+  createSortPipeline,
   testing: {
     createGroupStagePipeline,
     construct,
