@@ -22,7 +22,8 @@ const {
   parseFilter,
   createFilterPipeline,
   createSearchPipeline,
-  checkNestedField
+  checkNestedField,
+  createAddNestedFieldsPipeline
 } = pipelines.testing;
 
 suite('pipelines', function() {
@@ -760,6 +761,99 @@ suite('pipelines', function() {
 
     test('no match', function() {
       assert.isUndefined(checkNestedField('field.other'));
+    });
+  });
+
+  suite('createAddNestedFieldsPipeline', function() {
+    test('no recognized nested fields', function() {
+      assert.deepEqual(
+        createAddNestedFieldsPipeline(['field1', 'field2', 'field3.other'], 0),
+        { pipeline: [], nestedFields: [] }
+      );
+    });
+
+    test('nested fields, tzo 60', function() {
+      assert.deepEqual(
+        createAddNestedFieldsPipeline(
+          [
+            'field1',
+            'field2.year',
+            'field3.quarter',
+            'field4.month',
+            'field3.day',
+            'field3.dayofweek'
+          ],
+          60
+        ),
+        {
+          pipeline: [
+            {
+              $addFields: {
+                ___field3_mp2: {
+                  $add: [
+                    {
+                      $month: {
+                        $subtract: ['$field3', 3600000]
+                      }
+                    },
+                    2
+                  ]
+                }
+              }
+            },
+            {
+              $addFields: {
+                ___field2_year: {
+                  $year: {
+                    $subtract: ['$field2', 3600000]
+                  }
+                },
+                ___field3_day: {
+                  $dayOfMonth: {
+                    $subtract: ['$field3', 3600000]
+                  }
+                },
+                ___field3_dayofweek: {
+                  $subtract: [
+                    {
+                      $dayOfWeek: {
+                        $subtract: ['$field3', 3600000]
+                      }
+                    },
+                    1
+                  ]
+                },
+                ___field3_quarter: {
+                  $divide: [
+                    {
+                      $subtract: [
+                        '$___field3_mp2',
+                        {
+                          $mod: ['$___field3_mp2', 3]
+                        }
+                      ]
+                    },
+                    3
+                  ]
+                },
+                ___field4_month: {
+                  $month: {
+                    $subtract: ['$field4', 3600000]
+                  }
+                }
+              }
+            }
+          ],
+          nestedFields: [
+            '___field2_year',
+            '___field3_mp2',
+            '___field3_quarter',
+            '___field4_month',
+            '___field3_day',
+            '___field3_dayofweek'
+          ]
+        }
+      );
     });
   });
 });

@@ -502,7 +502,7 @@ const checkNestedField = fieldName => {
   };
 };
 
-const createAddNestedFieldsPipeline = fieldNames => {
+const createAddNestedFieldsPipeline = (fieldNames, timezoneOffset) => {
   // copy&paste warning: these functions also exist in createGroupKeyPipeline,
   // should be refactored
   const divInt = (dividend, divisor) => ({
@@ -537,10 +537,7 @@ const createAddNestedFieldsPipeline = fieldNames => {
         ) {
           // timezone adjusted field
           const tafield = {
-            $subtract: [
-              '$' + nf.base,
-              contextOptions.timezoneOffset * 60 * 1000
-            ]
+            $subtract: ['$' + nf.base, timezoneOffset * 60 * 1000]
           };
 
           switch (nestedFunction) {
@@ -668,6 +665,7 @@ module.exports = {
     parseFilter,
     createFilterPipeline,
     createSearchPipeline,
-    checkNestedField
+    checkNestedField,
+    createAddNestedFieldsPipeline
   }
 };
