@@ -11,7 +11,8 @@ const {
   createCountPipeline,
   createMatchPipeline,
   createSortPipeline,
-  createSummaryPipeline
+  createSummaryPipeline,
+  createSelectProjectExpression
 } = pipelines;
 const {
   createGroupStagePipeline,
@@ -700,6 +701,26 @@ suite('pipelines', function() {
             }
           ],
           fieldList: ['thing', 'other', 'outlandish']
+        }
+      );
+    });
+  });
+
+  suite('createSelectProjectExpression', function() {
+    test('basics', function() {
+      assert.deepEqual(createSelectProjectExpression(['field1', 'field2']), {
+        field1: '$field1',
+        field2: '$field2'
+      });
+    });
+
+    test('explicitId', function() {
+      assert.deepEqual(
+        createSelectProjectExpression(['field1', 'field2'], true),
+        {
+          field1: '$field1',
+          field2: '$field2',
+          _id: '$_id'
         }
       );
     });
