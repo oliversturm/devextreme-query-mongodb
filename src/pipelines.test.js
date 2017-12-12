@@ -15,7 +15,8 @@ const {
   createGroupStagePipeline,
   construct,
   constructRegex,
-  parseFilter
+  parseFilter,
+  createFilterPipeline
 } = pipelines.testing;
 
 suite('pipelines', function() {
@@ -611,6 +612,29 @@ suite('pipelines', function() {
         },
         ['field1', 'field2', 'field3']
       );
+    });
+  });
+
+  suite('createFilterPipeline', function() {
+    test('works', function() {
+      assert.deepEqual(createFilterPipeline(['thing', '=', 42]), {
+        pipeline: [{ $match: { thing: { $eq: 42 } } }],
+        fieldList: ['thing']
+      });
+    });
+
+    test('no filter', function() {
+      assert.deepEqual(createFilterPipeline(), {
+        pipeline: [],
+        fieldList: []
+      });
+    });
+
+    test('invalid filter', function() {
+      assert.deepEqual(createFilterPipeline(['thing', '=']), {
+        pipeline: [],
+        fieldList: []
+      });
     });
   });
 });

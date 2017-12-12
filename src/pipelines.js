@@ -390,8 +390,9 @@ const createFilterPipeline = filter => {
   };
 
   if (filter) {
-    let fieldList = [];
-    const match = parseFilter(filter, fieldList);
+    const result = parseFilter(filter);
+    const match = result && result.match;
+    const fieldList = result ? result.fieldList : [];
     if (match)
       return {
         pipeline: [
@@ -663,6 +664,7 @@ module.exports = {
     createGroupStagePipeline,
     construct,
     constructRegex,
-    parseFilter
+    parseFilter,
+    createFilterPipeline
   }
 };
