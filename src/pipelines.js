@@ -235,7 +235,7 @@ const constructRegex = (fieldName, regex) => ({
   [fieldName]: { $regex: regex, $options: '' }
 });
 
-const parseFilter = (element, fieldList) => {
+const parseFilter = element => {
   // Element can be a string denoting a field name - I don't know if that's a case
   // supported by the widgets in any way, but it seems conceivable that somebody constructs
   // an expression like [ "!", "boolValueField" ]
@@ -263,25 +263,29 @@ const parseFilter = (element, fieldList) => {
   // .... etc
   //
 
+  const rval = (match, fieldList) => ({ match, fieldList });
+
   if (typeof element === 'string') {
-    fieldList.push(element);
     const nf = checkNestedField(element);
     const fieldName = nf ? nf.filterFieldName : element;
-    return construct(fieldName, '$eq', true);
+    return rval(construct(fieldName, '$eq', true), [element]);
   } else if (Array.isArray(element)) {
     if (element.length === 1 && element[0].length) {
       // assuming a nested array in this case:
       // the pivot grid sometimes does this
       // [ [ "field", "=", 5 ] ]
-      return parseFilter(element[0], fieldList);
+      return parseFilter(element[0]);
     } else if (element.length === 2) {
       // unary operator - only one supported
       if (element[0] === '!') {
-        const nor = parseFilter(element[1], fieldList);
-        if (nor)
-          return {
-            $nor: [nor]
-          };
+        const { match, fieldList } = parseFilter(element[1]);
+        if (match)
+          return rval(
+            {
+              $nor: [match]
+            },
+            fieldList
+          );
         else return null;
       } else return null;
     } else if (element.length % 2 === 1) {
@@ -305,48 +309,71 @@ const parseFilter = (element, fieldList) => {
         ) {
           // all operators are the same - build a list of conditions from the nested
           // items, combine with the operator
-          let result = {};
-          result['$' + operator] = element.reduce(
+          let result = element.reduce(
             (r, v) => {
-              if (r.previous) return { list: r.list, previous: false };
+              if (r.previous) return { ...r, previous: false };
               else {
-                const nestedFilter = parseFilter(v, fieldList);
+                const nestedResult = parseFilter(v);
+                const nestedFilter = nestedResult && nestedResult.match;
+                const fieldList = nestedResult ? nestedResult.fieldList : [];
                 if (nestedFilter) r.list.push(nestedFilter);
-                return { list: r.list, previous: true };
+                return {
+                  list: r.list,
+                  fieldList: r.fieldList.concat(fieldList),
+                  previous: true
+                };
               }
             },
-            { list: [], previous: false }
-          ).list;
+            { list: [], fieldList: [], previous: false }
+          );
 
-          return result;
+          return rval({ ['$' + operator]: result.list }, result.fieldList);
         } else return null;
       } else {
         if (element.length === 3) {
-          fieldList.push(element[0]);
           const nf = checkNestedField(element[0]);
           const fieldName = nf ? nf.filterFieldName : element[0];
 
           switch (operator) {
             case '=':
-              return construct(fieldName, '$eq', element[2]);
+              return rval(construct(fieldName, '$eq', element[2]), [
+                element[0]
+              ]);
             case '<>':
-              return construct(fieldName, '$ne', element[2]);
+              return rval(construct(fieldName, '$ne', element[2]), [
+                element[0]
+              ]);
             case '>':
-              return construct(fieldName, '$gt', element[2]);
+              return rval(construct(fieldName, '$gt', element[2]), [
+                element[0]
+              ]);
             case '>=':
-              return construct(fieldName, '$gte', element[2]);
+              return rval(construct(fieldName, '$gte', element[2]), [
+                element[0]
+              ]);
             case '<':
-              return construct(fieldName, '$lt', element[2]);
+              return rval(construct(fieldName, '$lt', element[2]), [
+                element[0]
+              ]);
             case '<=':
-              return construct(fieldName, '$lte', element[2]);
+              return rval(construct(fieldName, '$lte', element[2]), [
+                element[0]
+              ]);
             case 'startswith':
-              return constructRegex(fieldName, '^' + element[2]);
+              return rval(constructRegex(fieldName, '^' + element[2]), [
+                element[0]
+              ]);
             case 'endswith':
-              return constructRegex(fieldName, element[2] + '$');
+              return rval(constructRegex(fieldName, element[2] + '$'), [
+                element[0]
+              ]);
             case 'contains':
-              return constructRegex(fieldName, element[2]);
+              return rval(constructRegex(fieldName, element[2]), [element[0]]);
             case 'notcontains':
-              return constructRegex(fieldName, '^((?!' + element[2] + ').)*$');
+              return rval(
+                constructRegex(fieldName, '^((?!' + element[2] + ').)*$'),
+                [element[0]]
+              );
             default:
               return null;
           }

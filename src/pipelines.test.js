@@ -330,8 +330,10 @@ suite('pipelines', function() {
 
   suite('parseFilter', function() {
     const testParseFilter = (input, expectedMatch, expectedFieldList) => {
-      const fieldList = [];
-      assert.deepEqual(parseFilter(input, fieldList), expectedMatch);
+      const result = parseFilter(input);
+      const match = result && result.match;
+      const fieldList = result ? result.fieldList : [];
+      assert.deepEqual(match, expectedMatch);
       assert.deepEqual(fieldList, expectedFieldList);
     };
 
@@ -478,7 +480,7 @@ suite('pipelines', function() {
     });
 
     test('unknown operator', function() {
-      testParseFilter(['thing', '&%&%&%&', 'val'], null, ['thing']);
+      testParseFilter(['thing', '&%&%&%&', 'val'], null, []);
     });
 
     test('even number of elements > 2', function() {
