@@ -660,6 +660,7 @@ module.exports = {
   createSortPipeline,
   createSummaryPipeline,
   createSelectProjectExpression,
+  createSelectPipeline,
   testing: {
     createGroupStagePipeline,
     construct,

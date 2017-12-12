@@ -12,7 +12,8 @@ const {
   createMatchPipeline,
   createSortPipeline,
   createSummaryPipeline,
-  createSelectProjectExpression
+  createSelectProjectExpression,
+  createSelectPipeline
 } = pipelines;
 const {
   createGroupStagePipeline,
@@ -723,6 +724,19 @@ suite('pipelines', function() {
           _id: '$_id'
         }
       );
+    });
+  });
+
+  suite('createSelectPipeline', function() {
+    test('works', function() {
+      assert.deepEqual(createSelectPipeline(['field1', 'field2']), [
+        {
+          $project: {
+            field1: '$field1',
+            field2: '$field2'
+          }
+        }
+      ]);
     });
   });
 });
