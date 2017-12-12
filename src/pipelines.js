@@ -268,7 +268,7 @@ const parseFilter = (element, fieldList) => {
     const nf = checkNestedField(element);
     const fieldName = nf ? nf.filterFieldName : element;
     return construct(fieldName, '$eq', true);
-  } else if (element.length) {
+  } else if (Array.isArray(element)) {
     if (element.length === 1 && element[0].length) {
       // assuming a nested array in this case:
       // the pivot grid sometimes does this
@@ -286,7 +286,7 @@ const parseFilter = (element, fieldList) => {
       } else return null;
     } else if (element.length % 2 === 1) {
       // odd number of elements - let's see what the operator is
-      const operator = element[1].toLowerCase();
+      const operator = String(element[1]).toLowerCase();
 
       if (['and', 'or'].includes(operator)) {
         if (
@@ -635,6 +635,7 @@ module.exports = {
   testing: {
     createGroupStagePipeline,
     construct,
-    constructRegex
+    constructRegex,
+    parseFilter
   }
 };

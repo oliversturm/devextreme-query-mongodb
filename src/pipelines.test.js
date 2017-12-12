@@ -14,7 +14,8 @@ const {
 const {
   createGroupStagePipeline,
   construct,
-  constructRegex
+  constructRegex,
+  parseFilter
 } = pipelines.testing;
 
 suite('pipelines', function() {
@@ -324,6 +325,290 @@ suite('pipelines', function() {
       assert.deepEqual(constructRegex('field', 'regex'), {
         field: { $regex: 'regex', $options: '' }
       });
+    });
+  });
+
+  suite('parseFilter', function() {
+    const testParseFilter = (input, expectedMatch, expectedFieldList) => {
+      const fieldList = [];
+      assert.deepEqual(parseFilter(input, fieldList), expectedMatch);
+      assert.deepEqual(fieldList, expectedFieldList);
+    };
+
+    test('string element', function() {
+      testParseFilter(
+        'thing',
+        {
+          thing: { $eq: true }
+        },
+        ['thing']
+      );
+    });
+
+    test('nested array', function() {
+      testParseFilter(
+        [[['!', 'thing']]], // wild and pointless nesting
+        {
+          $nor: [
+            {
+              thing: { $eq: true }
+            }
+          ]
+        },
+        ['thing']
+      );
+    });
+
+    test('!', function() {
+      testParseFilter(
+        ['!', 'thing'],
+        {
+          $nor: [
+            {
+              thing: { $eq: true }
+            }
+          ]
+        },
+        ['thing']
+      );
+    });
+
+    test('unknown unary', function() {
+      testParseFilter(['&', 'thing'], null, []);
+    });
+
+    test('equal', function() {
+      testParseFilter(
+        ['thing', '=', 'val'],
+        {
+          thing: { $eq: 'val' }
+        },
+        ['thing']
+      );
+    });
+
+    test('not equal', function() {
+      testParseFilter(
+        ['thing', '<>', 'val'],
+        {
+          thing: { $ne: 'val' }
+        },
+        ['thing']
+      );
+    });
+
+    test('greater than', function() {
+      testParseFilter(
+        ['thing', '>', 'val'],
+        {
+          thing: { $gt: 'val' }
+        },
+        ['thing']
+      );
+    });
+
+    test('greater than or equal', function() {
+      testParseFilter(
+        ['thing', '>=', 'val'],
+        {
+          thing: { $gte: 'val' }
+        },
+        ['thing']
+      );
+    });
+
+    test('lower than', function() {
+      testParseFilter(
+        ['thing', '<', 'val'],
+        {
+          thing: { $lt: 'val' }
+        },
+        ['thing']
+      );
+    });
+
+    test('lower than or equal', function() {
+      testParseFilter(
+        ['thing', '<=', 'val'],
+        {
+          thing: { $lte: 'val' }
+        },
+        ['thing']
+      );
+    });
+
+    test('startswith', function() {
+      testParseFilter(
+        ['thing', 'startswith', 'val'],
+        {
+          thing: { $regex: '^val', $options: '' }
+        },
+        ['thing']
+      );
+    });
+
+    test('endswith', function() {
+      testParseFilter(
+        ['thing', 'endswith', 'val'],
+        {
+          thing: { $regex: 'val$', $options: '' }
+        },
+        ['thing']
+      );
+    });
+
+    test('contains', function() {
+      testParseFilter(
+        ['thing', 'contains', 'val'],
+        {
+          thing: { $regex: 'val', $options: '' }
+        },
+        ['thing']
+      );
+    });
+
+    test('notcontains', function() {
+      testParseFilter(
+        ['thing', 'notcontains', 'val'],
+        {
+          thing: { $regex: '^((?!val).)*$', $options: '' }
+        },
+        ['thing']
+      );
+    });
+
+    test('unknown operator', function() {
+      testParseFilter(['thing', '&%&%&%&', 'val'], null, ['thing']);
+    });
+
+    test('even number of elements > 2', function() {
+      testParseFilter([1, 3, 4, 6], null, []);
+    });
+
+    test('not an array or a string', function() {
+      testParseFilter({ barg: 42 }, null, []);
+    });
+
+    test('odd number of elements > 3 without operator in pos 1', function() {
+      testParseFilter([1, 'unknown item', 3, 4, 5], null, []);
+    });
+
+    test('odd number of elements > 3 with non-string in pos 1', function() {
+      testParseFilter([1, { barg: 42 }, 3, 4, 5], null, []);
+    });
+
+    test('nested field', function() {
+      testParseFilter(
+        ['thing.year', '=', 'val'],
+        {
+          ___thing_year: { $eq: 'val' }
+        },
+        ['thing.year']
+      );
+    });
+
+    test('unrecognized nested field', function() {
+      testParseFilter(
+        ['thing.unknown', '=', 'val'],
+        {
+          'thing.unknown': { $eq: 'val' }
+        },
+        ['thing.unknown']
+      );
+    });
+
+    test('correct "and" chain', function() {
+      testParseFilter(
+        [
+          ['field1', '=', 42],
+          'and',
+          ['field2', '>', 10],
+          'and',
+          ['field3', '<>', 'this thing']
+        ],
+        {
+          $and: [
+            {
+              field1: { $eq: 42 }
+            },
+            {
+              field2: { $gt: 10 }
+            },
+            {
+              field3: { $ne: 'this thing' }
+            }
+          ]
+        },
+        ['field1', 'field2', 'field3']
+      );
+    });
+
+    test('correct "or" chain', function() {
+      testParseFilter(
+        [
+          ['field1', '=', 42],
+          'or',
+          ['field2', '>', 10],
+          'or',
+          ['field3', '<>', 'this thing']
+        ],
+        {
+          $or: [
+            {
+              field1: { $eq: 42 }
+            },
+            {
+              field2: { $gt: 10 }
+            },
+            {
+              field3: { $ne: 'this thing' }
+            }
+          ]
+        },
+        ['field1', 'field2', 'field3']
+      );
+    });
+
+    test('incorrect operator chain', function() {
+      testParseFilter(
+        [
+          ['field1', '=', 42],
+          'and',
+          ['field2', '>', 10],
+          'or',
+          ['field3', '<>', 'this thing']
+        ],
+        null,
+        []
+      );
+    });
+
+    test('correct combined operator chain', function() {
+      testParseFilter(
+        [
+          ['field1', '=', 42],
+          'and',
+          [['field2', '>', 10], 'or', ['field3', '<>', 'this thing']]
+        ],
+        {
+          $and: [
+            {
+              field1: { $eq: 42 }
+            },
+            {
+              $or: [
+                {
+                  field2: { $gt: 10 }
+                },
+                {
+                  field3: { $ne: 'this thing' }
+                }
+              ]
+            }
+          ]
+        },
+        ['field1', 'field2', 'field3']
+      );
     });
   });
 });
