@@ -36,19 +36,19 @@
     "value-fixers": "^1.0.0"
   },
   "devDependencies": {
-    "babel-cli": "^6.6.4",
-    "babel-core": "^6.7.4",
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.0",
     "babel-eslint": "^6.0.2",
     "babel-plugin-remove-comments": "^2.0.0",
     "babel-plugin-transform-es2015-modules-umd": "^6.6.5",
-    "babel-plugin-transform-object-rest-spread": "^6.23.0",
-    "babel-polyfill": "^6.7.4",
-    "babel-preset-env": "^1.6.0",
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
     "chai": "^3.5.0",
     "eslint": "^3.15.0",
-    "mocha": "^3.2.0",
-    "mongodb": "^2.2.22",
-    "nyc": "^11.1.0",
-    "qs": "^6.4.0"
+    "mocha": "^3.5.3",
+    "mongodb": "^2.2.33",
+    "nyc": "^11.4.0",
+    "qs": "^6.5.1"
   }
 }

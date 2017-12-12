@@ -27,6 +27,11 @@ function createContext(contextOptions, loadOptions) {
 
   var createGroupKeyPipeline = function createGroupKeyPipeline(selector, groupInterval, groupIndex) {
     var wrapGroupKey = function wrapGroupKey(keyExpr) {
+      return {
+        $addFields: _defineProperty({}, createGroupFieldName(groupIndex), keyExpr)
+      };
+    };
+    var wrapGroupKey_ = function wrapGroupKey_(keyExpr) {
       var field = {};
       field[createGroupFieldName(groupIndex)] = keyExpr;
 
