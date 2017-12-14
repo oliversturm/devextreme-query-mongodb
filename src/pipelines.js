@@ -235,6 +235,7 @@ const constructRegex = (fieldName, regex) => ({
   [fieldName]: { $regex: regex, $options: '' }
 });
 
+// eslint-disable-next-line complexity
 const parseFilter = element => {
   // Element can be a string denoting a field name - I don't know if that's a case
   // supported by the widgets in any way, but it seems conceivable that somebody constructs
@@ -641,6 +642,7 @@ const createRemoveNestedFieldsPipeline = nestedFields => {
 };
 
 module.exports = {
+  createGroupFieldName,
   createGroupKeyPipeline,
   createGroupingPipeline,
   createSkipTakePipeline,

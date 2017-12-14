@@ -1,3 +1,24 @@
+const {
+  createGroupFieldName,
+  createGroupKeyPipeline,
+  createGroupingPipeline,
+  createSkipTakePipeline,
+  createCountPipeline,
+  createMatchPipeline,
+  createSortPipeline,
+  createSummaryPipeline,
+  createSelectProjectExpression,
+  createSelectPipeline,
+  createCompleteFilterPipeline,
+  createRemoveNestedFieldsPipeline
+} = require('./pipelines');
+const {
+  replaceId,
+  createSummaryQueryExecutor,
+  merge,
+  debug
+} = require('./utils');
+
 function createContext(contextOptions, loadOptions) {
   const getCount = (collection, pipeline) =>
     collection
@@ -124,6 +145,7 @@ function createContext(contextOptions, loadOptions) {
             ).then(r => {
               item.items = r;
               item.count = r.length;
+              return r;
             })
           )
         : [];
@@ -163,6 +185,7 @@ function createContext(contextOptions, loadOptions) {
             ...createCountPipeline()
           ]).then(r => {
             item.count = r;
+            return r;
           })
         );
       } else return [];
@@ -197,23 +220,35 @@ function createContext(contextOptions, loadOptions) {
       separateCountRequired,
       createSelectProjectExpression(loadOptions.select, true),
       groupKeyPipeline,
-      itemDataRequired ? createSortPipeline() : [],
+      itemDataRequired ? createSortPipeline(loadOptions.sort) : [],
       filterPipelineDetails,
       skipTakePipeline,
       matchPipeline
-    ).then(groupData =>
-      Promise.all([
-        ...augmentWithSubGroups(groupData),
-        ...augmentWithSeparateCount(groupData),
-        ...augmentWithSummaries(groupData)
-      ]).then(() => groupData)
+    ).then(
+      groupData =>
+        /* eslint-disable promise/no-nesting */
+        Promise.all([
+          ...augmentWithSubGroups(groupData),
+          ...augmentWithSeparateCount(groupData),
+          ...augmentWithSummaries(groupData)
+        ]).then(() => groupData)
+      /* eslint-enable promise/no-nesting */
     );
   };
 
   const queryGroups = collection => {
-    const completeFilterPipelineDetails = createCompleteFilterPipeline();
+    const completeFilterPipelineDetails = createCompleteFilterPipeline(
+      loadOptions.searchExpr,
+      loadOptions.searchOperation,
+      loadOptions.searchValue,
+      loadOptions.filter,
+      contextOptions.timezoneOffset
+    );
     const summaryPipeline = createSummaryPipeline(loadOptions.groupSummary);
-    const skipTakePipeline = createSkipTakePipeline();
+    const skipTakePipeline = createSkipTakePipeline(
+      loadOptions.skip,
+      loadOptions.take
+    );
 
     const mainQueryResult = () =>
       queryGroup(
@@ -282,9 +317,18 @@ function createContext(contextOptions, loadOptions) {
   };
 
   const querySimple = collection => {
-    const completeFilterPipelineDetails = createCompleteFilterPipeline();
-    const sortPipeline = createSortPipeline();
-    const skipTakePipeline = createSkipTakePipeline();
+    const completeFilterPipelineDetails = createCompleteFilterPipeline(
+      loadOptions.searchExpr,
+      loadOptions.searchOperation,
+      loadOptions.searchValue,
+      loadOptions.filter,
+      contextOptions.timezoneOffset
+    );
+    const sortPipeline = createSortPipeline(loadOptions.sort);
+    const skipTakePipeline = createSkipTakePipeline(
+      loadOptions.skip,
+      loadOptions.take
+    );
     const selectPipeline = createSelectPipeline(loadOptions.select);
     const removeNestedFieldsPipeline = createRemoveNestedFieldsPipeline(
       completeFilterPipelineDetails.nestedFields

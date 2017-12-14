@@ -1,27 +1,18 @@
 {
   "name": "devextreme-query-mongodb",
   "version": "2.0.4",
-  "description": "Querying a MongoDB collection using DevExtreme data store load parameters",
+  "description":
+    "Querying a MongoDB collection using DevExtreme data store load parameters",
   "main": "index.js",
-  "files": [
-    "index.js",
-    "options.js",
-    "dist",
-    "src",
-    "LICENSE",
-    "README.md"
-  ],
+  "files": ["index.js", "options.js", "dist", "src", "LICENSE", "README.md"],
   "scripts": {
-    "prepare": "babel src --ignore tests --out-dir ./dist"
+    "prepare": "babel src --out-dir ./dist"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/oliversturm/devextreme-query-mongodb.git"
   },
-  "keywords": [
-    "DevExtreme",
-    "MongoDB"
-  ],
+  "keywords": ["DevExtreme", "MongoDB"],
   "author": "Oliver Sturm <oliver@oliversturm.com>",
   "license": "SEE LICENSE IN LICENSE",
   "bugs": {
@@ -46,9 +37,11 @@
     "babel-preset-env": "^1.6.1",
     "chai": "^3.5.0",
     "eslint": "^3.15.0",
+    "eslint-plugin-promise": "^3.6.0",
     "mocha": "^3.5.3",
     "mongodb": "^2.2.33",
     "nyc": "^11.4.0",
-    "qs": "^6.5.1"
+    "qs": "^6.5.1",
+    "sinon": "^4.1.3"
   }
 }

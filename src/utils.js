@@ -18,4 +18,16 @@ const createSummaryQueryExecutor = limit => {
 
 const merge = os => Object.assign({}, os);
 
-module.exports = { replaceId, createSummaryQueryExecutor, merge };
+const debug = (id, f, options = {}) => {
+  const output = options.output || console.log;
+  const processResult = options.processResult || (result => result);
+  const processArgs = options.processArgs || (args => args);
+  return (...args) => {
+    output(`DEBUG(${id}): `, processArgs(args));
+    const result = f(...args);
+    output(`DEBUG(${id}/result): `, processResult(result));
+    return result;
+  };
+};
+
+module.exports = { replaceId, createSummaryQueryExecutor, merge, debug };
