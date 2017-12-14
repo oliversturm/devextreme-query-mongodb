@@ -56,7 +56,7 @@ function testQueryValues(
 
 suite('query-values', function() {
   suite('#entitiesQuery.values', function() {
-    test.only('list should retrieve all entities', function(tdone) {
+    test('list should retrieve all entities', function(tdone) {
       testQueryValues(
         tdone,
         {

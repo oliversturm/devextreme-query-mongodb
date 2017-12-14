@@ -16,7 +16,7 @@ const createSummaryQueryExecutor = limit => {
     !limit || ++queriesExecuted <= limit ? fn() : Promise.resolve();
 };
 
-const merge = os => Object.assign({}, os);
+const merge = os => Object.assign({}, ...os);
 
 const debug = (id, f, options = {}) => {
   const output = options.output || console.log;
