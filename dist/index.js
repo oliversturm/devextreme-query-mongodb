@@ -18,11 +18,11 @@ var _require = require('./pipelines'),
     createCompleteFilterPipeline = _require.createCompleteFilterPipeline,
     createRemoveNestedFieldsPipeline = _require.createRemoveNestedFieldsPipeline;
 
-var _utils = './utils',
-    replaceId = _utils.replaceId,
-    createSummaryQueryExecutor = _utils.createSummaryQueryExecutor,
-    merge = _utils.merge;
-
+var _require2 = require('./utils'),
+    replaceId = _require2.replaceId,
+    createSummaryQueryExecutor = _require2.createSummaryQueryExecutor,
+    merge = _require2.merge,
+    debug = _require2.debug;
 
 function createContext(contextOptions, loadOptions) {
   var getCount = function getCount(collection, pipeline) {
