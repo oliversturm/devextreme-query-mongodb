@@ -1,32 +1,32 @@
 const createGroupFieldName = groupIndex => '___group_key_' + groupIndex;
 
+// much more complicated than it should be because braindead mongo
+// doesn't support integer division by itself
+// so I'm doing (dividend - (dividend MOD divisor)) / divisor
+const divInt = (dividend, divisor) => ({
+  $divide: [subtractMod(dividend, divisor), divisor]
+});
+
+const subtractMod = (a, b) => ({
+  $subtract: [
+    a,
+    {
+      $mod: [a, b]
+    }
+  ]
+});
+
 const createGroupKeyPipeline = (
   selector,
   groupInterval,
   groupIndex,
-  timezoneOffset
+  timezoneOffset = 0
 ) => {
   const wrapGroupKey = keyExpr => ({
     $addFields: { [createGroupFieldName(groupIndex)]: keyExpr }
   });
 
   const prefix = s => '$' + s;
-
-  // much more complicated than it should be because braindead mongo
-  // doesn't support integer division by itself
-  // so I'm doing (dividend - (dividend MOD divisor)) / divisor
-  const divInt = (dividend, divisor) => ({
-    $divide: [subtractMod(dividend, divisor), divisor]
-  });
-
-  const subtractMod = (a, b) => ({
-    $subtract: [
-      a,
-      {
-        $mod: [a, b]
-      }
-    ]
-  });
 
   const pipe = (...args) => {
     let result = Array.from(args);
@@ -502,22 +502,7 @@ const checkNestedField = fieldName => {
   };
 };
 
-const createAddNestedFieldsPipeline = (fieldNames, timezoneOffset) => {
-  // copy&paste warning: these functions also exist in createGroupKeyPipeline,
-  // should be refactored
-  const divInt = (dividend, divisor) => ({
-    $divide: [subtractMod(dividend, divisor), divisor]
-  });
-
-  const subtractMod = (a, b) => ({
-    $subtract: [
-      a,
-      {
-        $mod: [a, b]
-      }
-    ]
-  });
-
+const createAddNestedFieldsPipeline = (fieldNames, timezoneOffset = 0) => {
   // constructing a pipeline that potentially has two parts, because the
   // quarter calculation has two steps
   // both parts will be wrapped in { $addFields: PART } after this
@@ -610,21 +595,28 @@ const createAddNestedFieldsPipeline = (fieldNames, timezoneOffset) => {
   return pr;
 };
 
-const createCompleteFilterPipeline = () => {
+const createCompleteFilterPipeline = (
+  searchExpr,
+  searchOperation,
+  searchValue,
+  filter,
+  timezoneOffset = 0
+) => {
   // this pipeline has the search options, the function also returns
   // a list of fields that are being accessed
   const searchPipeline = createSearchPipeline(
-    loadOptions.searchExpr,
-    loadOptions.searchOperation,
-    loadOptions.searchValue
+    searchExpr,
+    searchOperation,
+    searchValue
   );
   // and the same for the filter option
-  const filterPipeline = createFilterPipeline(loadOptions.filter);
+  const filterPipeline = createFilterPipeline(filter);
 
   // this pipeline adds fields in case there are nested elements:
   // dateField.Month
   const addNestedFieldsPipelineDetails = createAddNestedFieldsPipeline(
-    searchPipeline.fieldList.concat(filterPipeline.fieldList)
+    searchPipeline.fieldList.concat(filterPipeline.fieldList),
+    timezoneOffset
   );
 
   return {
@@ -658,7 +650,11 @@ module.exports = {
   createSummaryPipeline,
   createSelectProjectExpression,
   createSelectPipeline,
+  createCompleteFilterPipeline,
+  createRemoveNestedFieldsPipeline,
   testing: {
+    divInt,
+    subtractMod,
     createGroupStagePipeline,
     construct,
     constructRegex,

@@ -13,7 +13,9 @@ const {
   createSortPipeline,
   createSummaryPipeline,
   createSelectProjectExpression,
-  createSelectPipeline
+  createSelectPipeline,
+  createCompleteFilterPipeline,
+  createRemoveNestedFieldsPipeline
 } = pipelines;
 const {
   createGroupStagePipeline,
@@ -23,10 +25,33 @@ const {
   createFilterPipeline,
   createSearchPipeline,
   checkNestedField,
-  createAddNestedFieldsPipeline
+  createAddNestedFieldsPipeline,
+  divInt,
+  subtractMod
 } = pipelines.testing;
 
 suite('pipelines', function() {
+  suite('divInt', function() {
+    test('works', function() {
+      assert.deepEqual(divInt(14, 3), {
+        $divide: [
+          {
+            $subtract: [14, { $mod: [14, 3] }]
+          },
+          3
+        ]
+      });
+    });
+  });
+
+  suite('subtractMod', function() {
+    test('works', function() {
+      assert.deepEqual(subtractMod(14, 3), {
+        $subtract: [14, { $mod: [14, 3] }]
+      });
+    });
+  });
+
   suite('createGroupKeyPipeline', function() {
     test('no groupInterval', function() {
       const result = createGroupKeyPipeline('sel', null, 0, 0);
@@ -854,6 +879,65 @@ suite('pipelines', function() {
           ]
         }
       );
+    });
+  });
+
+  suite('createCompleteFilterPipeline', function() {
+    test('works', function() {
+      assert.deepEqual(
+        createCompleteFilterPipeline(
+          'thing',
+          '=',
+          42,
+          [['thing2', '>', 13], 'and', ['date.month', '<', 5]],
+          60
+        ),
+        {
+          pipeline: [
+            {
+              $addFields: {
+                ___date_month: {
+                  $month: {
+                    $subtract: ['$date', 3600000]
+                  }
+                }
+              }
+            },
+            {
+              $match: {
+                thing: {
+                  $eq: 42
+                }
+              }
+            },
+            {
+              $match: {
+                $and: [
+                  {
+                    thing2: {
+                      $gt: 13
+                    }
+                  },
+                  {
+                    ___date_month: {
+                      $lt: 5
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          nestedFields: ['___date_month']
+        }
+      );
+    });
+  });
+
+  suite('createRemoveNestedFieldsPipeline', function() {
+    test('works', function() {
+      assert.deepEqual(createRemoveNestedFieldsPipeline(['field1', 'field2']), [
+        { $project: { field1: 0, field2: 0 } }
+      ]);
     });
   });
 });
