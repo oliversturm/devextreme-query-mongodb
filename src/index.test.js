@@ -1,18 +1,19 @@
+/* global suite, test */
+/* eslint-disable no-unused-expressions */
+
 const chai = require('chai');
 const expect = chai.expect;
-const assert = chai.assert;
 const MongoClient = require('mongodb').MongoClient;
 
-const query = require('..');
+const query = require('.');
 
 const TESTRECORD_COUNT = 100;
 
-function db(f) {
-  MongoClient.connect('mongodb://localhost:27017/dxtqutests', (err, db) => {
-    if (err) throw err;
-    f(db);
-  });
-}
+const initClient = () =>
+  MongoClient.connect(
+    'mongodb://localhost:27017/dxtqutests',
+    { useNewUrlParser: true }
+  );
 
 function testQueryValues(
   tdone,
@@ -25,40 +26,46 @@ function testQueryValues(
     return new Date(start + addDays * (24 * 60 * 60 * 1000));
   }
 
-  db(db => {
-    db.dropDatabase((err, res) => {
-      const values = db.collection('values');
-      const currentYear = 2017;
-      const currentYearStart = new Date(currentYear, 0, 1).valueOf();
-      const nextYearStart = new Date(currentYear + 1, 0, 1).valueOf();
+  initClient()
+    .then(
+      client =>
+        /* eslint-disable promise/always-return, promise/no-nesting */
+        client
+          .db()
+          .dropDatabase()
+          .then(() => {
+            const values = client.db().collection('values');
+            const currentYear = 2017;
+            const currentYearStart = new Date(currentYear, 0, 1).valueOf();
+            const nextYearStart = new Date(currentYear + 1, 0, 1).valueOf();
 
-      Promise.all(
-        getTestDataPromises
-          ? getTestDataPromises(values)
-          : Array.from(new Array(TESTRECORD_COUNT), (v, i) => i).map(n =>
-              values.insertOne({
-                date1: date(currentYearStart, n),
-                date2: date(nextYearStart, n),
-                int1: n % 10,
-                int2: n % 5,
-                string: 'Item ' + n
-              })
+            return Promise.all(
+              getTestDataPromises
+                ? getTestDataPromises(values)
+                : Array.from(new Array(TESTRECORD_COUNT), (v, i) => i).map(n =>
+                    values.insertOne({
+                      date1: date(currentYearStart, n),
+                      date2: date(nextYearStart, n),
+                      int1: n % 10,
+                      int2: n % 5,
+                      string: 'Item ' + n
+                    })
+                  )
             )
-      ).then(async () => {
-        try {
-          test(await query(values, loadOptions, contextOptions));
-          tdone();
-        } catch (err) {
-          tdone(err);
-        }
-      });
-    });
-  });
+              .then(() => query(values, loadOptions, contextOptions))
+              .then(test)
+              .then(tdone);
+          })
+
+          .then(() => client.close())
+      /* eslint-enable promise/always-return, promise/no-nesting */
+    )
+    .catch(err => tdone(err));
 }
 
-describe('query-values', function() {
-  describe('#entitiesQuery.values', function() {
-    it('list should retrieve all entities', function(tdone) {
+suite('query-values', function() {
+  suite('#entitiesQuery.values', function() {
+    test('list should retrieve all entities', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -73,7 +80,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should accept skip', function(tdone) {
+    test('list should accept skip', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -89,7 +96,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should accept take', function(tdone) {
+    test('list should accept take', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -105,7 +112,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should sort ascending', function(tdone) {
+    test('list should sort ascending', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -129,7 +136,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should sort descending', function(tdone) {
+    test('list should sort descending', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -153,7 +160,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should filter with =', function(tdone) {
+    test('list should filter with =', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -169,7 +176,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should filter with multiple criteria', function(tdone) {
+    test('list should filter with multiple criteria', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -185,7 +192,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should search with =', function(tdone) {
+    test('list should search with =', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -203,7 +210,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should project with select', function(tdone) {
+    test('list should project with select', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -225,7 +232,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should search with multiple fields', function(tdone) {
+    test('list should search with multiple fields', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -245,7 +252,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should filter with <', function(tdone) {
+    test('list should filter with <', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -261,7 +268,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should filter with date.Month and nested array', function(tdone) {
+    test('list should filter with date.Month and nested array', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -279,7 +286,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should filter with date.Quarter', function(tdone) {
+    test('list should filter with date.Quarter', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -305,7 +312,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should filter and group (sample 1)', function(tdone) {
+    test('list should filter and group (sample 1)', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -344,9 +351,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group and filter by quarter without extra fields', function(
-      tdone
-    ) {
+    test('list should group and filter by quarter without extra fields', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -395,7 +400,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should filter with endswith', function(tdone) {
+    test('list should filter with endswith', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -411,7 +416,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should filter with endswith, no results', function(tdone) {
+    test('list should filter with endswith, no results', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -427,9 +432,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should filter with endswith, no results, total summary defined', function(
-      tdone
-    ) {
+    test('list should filter with endswith, no results, total summary defined', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -453,9 +456,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should calculate total summaries for simple queries', function(
-      tdone
-    ) {
+    test('list should calculate total summaries for simple queries', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -483,7 +484,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group with items', function(tdone) {
+    test('list should group with items', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -525,7 +526,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group with items and select', function(tdone) {
+    test('list should group with items and select', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -554,7 +555,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group with items and secondary sort', function(tdone) {
+    test('list should group with items and secondary sort', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -605,7 +606,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group without items', function(tdone) {
+    test('list should group without items', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -635,7 +636,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group without items, with filter', function(tdone) {
+    test('list should group without items, with filter', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -666,7 +667,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group without items, with complex filter', function(tdone) {
+    test('list should group without items, with complex filter', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -703,7 +704,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group with items, with complex filter', function(tdone) {
+    test('list should group with items, with complex filter', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -750,7 +751,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group two levels with bottom-level items', function(tdone) {
+    test('list should group two levels with bottom-level items', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -816,9 +817,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group two levels without bottom-level items', function(
-      tdone
-    ) {
+    test('list should group two levels without bottom-level items', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -873,7 +872,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group three levels without  items', function(tdone) {
+    test('list should group three levels without  items', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -1526,7 +1525,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should calculate total summaries group query', function(tdone) {
+    test('list should calculate total summaries group query', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -1574,7 +1573,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should calculate group summaries', function(tdone) {
+    test('list should calculate group summaries', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -1621,7 +1620,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group with groupInterval quarter', function(tdone) {
+    test('list should group with groupInterval quarter', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -1651,7 +1650,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group with groupInterval month', function(tdone) {
+    test('list should group with groupInterval month', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -1687,7 +1686,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group with groupInterval dayOfWeek', function(tdone) {
+    test('list should group with groupInterval dayOfWeek', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -1710,7 +1709,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group with groupInterval 2', function(tdone) {
+    test('list should group with groupInterval 2', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -1745,9 +1744,7 @@ describe('query-values', function() {
       );
     });
 
-    it('list should group with groupInterval quarter and summaries', function(
-      tdone
-    ) {
+    test('list should group with groupInterval quarter and summaries', function(tdone) {
       testQueryValues(
         tdone,
         {
@@ -1807,7 +1804,7 @@ describe('query-values', function() {
       );
     });
 
-    it('month and dow should work correctly for May 1st 2017', function(tdone) {
+    test('month and dow should work correctly for May 1st 2017', function(tdone) {
       // mongodb aggregation operators that extract Date details work on
       // UTC only - so they need to have a timezone offset to work with
       // in order to deliver the correct results if the local timezone
@@ -1816,6 +1813,13 @@ describe('query-values', function() {
       // and UTC. Unfortunately mongodb seems to use the server time to handle
       // its persistence, so mocking a timezone from JS doesn't make any
       // difference.
+
+      // I have noticed that this test fails right now (2017-12-11) because the Docker
+      // image I run for Mongo doesn't seem to know what the correct time zone is...
+      // This wouldn't be an issue in real life since we can assume that server
+      // time zones and dst are going to change according to the real world, but it
+      // does make it clear that it's not easy passing the "correct" timezoneOffset
+      // from the client.
 
       testQueryValues(
         tdone,
@@ -1846,9 +1850,7 @@ describe('query-values', function() {
       );
     });
 
-    it('month grouping should work correctly for May 1st 2017', function(
-      tdone
-    ) {
+    test('month grouping should work correctly for May 1st 2017', function(tdone) {
       // mongodb aggregation operators that extract Date details work on
       // UTC only - so they need to have a timezone offset to work with
       // in order to deliver the correct results if the local timezone
@@ -1857,6 +1859,13 @@ describe('query-values', function() {
       // and UTC. Unfortunately mongodb seems to use the server time to handle
       // its persistence, so mocking a timezone from JS doesn't make any
       // difference.
+
+      // I have noticed that this test fails right now (2017-12-11) because the Docker
+      // image I run for Mongo doesn't seem to know what the correct time zone is...
+      // This wouldn't be an issue in real life since we can assume that server
+      // time zones and dst are going to change according to the real world, but it
+      // does make it clear that it's not easy passing the "correct" timezoneOffset
+      // from the client.
 
       testQueryValues(
         tdone,
@@ -1895,7 +1904,7 @@ describe('query-values', function() {
       );
     });
 
-    it('query should work correctly for May 1st 2017', function(tdone) {
+    test('query should work correctly for May 1st 2017', function(tdone) {
       // see comment above - this test is meaningless if there's no difference
       // between local timezone and UTC. If there is a difference, the test
       // makes sure that data persistence and querying work together the way

@@ -1,13 +1,14 @@
+/* global suite, test */
+
 const chai = require('chai');
 const expect = chai.expect;
-const assert = chai.assert;
 const qs = require('qs');
 
-const options = require('../../dist/options');
+const options = require('./options');
 const getOptions = options.getOptions;
 const fixFilterAndSearch = options.private.fixFilterAndSearch;
 
-function test(queryString, expectedResult, schema) {
+function testOptions(queryString, expectedResult, schema) {
   const result = getOptions(qs.parse(queryString), schema);
   // console.log(`Testing query ${queryString}`);
   // console.log('Result: ', JSON.stringify(result, null, 2));
@@ -15,8 +16,8 @@ function test(queryString, expectedResult, schema) {
   expect(result).to.eql(expectedResult);
 }
 
-describe('fixFilterAndSearch', function() {
-  it('fixes filter int', function() {
+suite('fixFilterAndSearch', function() {
+  test('fixes filter int', function() {
     expect(
       fixFilterAndSearch({
         int: 'int'
@@ -28,7 +29,7 @@ describe('fixFilterAndSearch', function() {
     });
   });
 
-  it('fixes search int', function() {
+  test('fixes search int', function() {
     expect(
       fixFilterAndSearch({
         int: 'int'
@@ -45,9 +46,9 @@ describe('fixFilterAndSearch', function() {
   });
 });
 
-describe('getOptions', function() {
-  it('take and total count', function() {
-    test('take=10&requireTotalCount=true', {
+suite('getOptions', function() {
+  test('take and total count', function() {
+    testOptions('take=10&requireTotalCount=true', {
       errors: [],
       loadOptions: {
         take: 10,
@@ -57,8 +58,8 @@ describe('getOptions', function() {
     });
   });
 
-  it('take and total count with tzOffset', function() {
-    test('take=10&requireTotalCount=true&tzOffset=-60', {
+  test('take and total count with tzOffset', function() {
+    testOptions('take=10&requireTotalCount=true&tzOffset=-60', {
       errors: [],
       loadOptions: {
         take: 10,
@@ -70,8 +71,8 @@ describe('getOptions', function() {
     });
   });
 
-  it('take, skip, total count', function() {
-    test('take=10&requireTotalCount=true&skip=30', {
+  test('take, skip, total count', function() {
+    testOptions('take=10&requireTotalCount=true&skip=30', {
       errors: [],
       loadOptions: {
         take: 10,
@@ -82,8 +83,8 @@ describe('getOptions', function() {
     });
   });
 
-  it('sort, take and total count', function() {
-    test(
+  test('sort, take and total count', function() {
+    testOptions(
       'sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&take=10&requireTotalCount=true',
       {
         errors: [],
@@ -102,8 +103,51 @@ describe('getOptions', function() {
     );
   });
 
-  it('total count, group, group count', function() {
-    test(
+  test('issue #10 - filter works when given as array', function() {
+    expect(
+      getOptions({
+        filter:
+          //        '[["dtFinished",">=","2018-08-01T16:20:30.000Z"],"and",["dtFinished","<","2018-08-01T16:20:30.000Z"]]'
+          [
+            ['dtFinished', '>=', '2018-08-01T16:20:30.000Z'],
+            'and',
+            ['dtFinished', '<', '2018-08-01T16:20:30.000Z']
+          ]
+      })
+    ).to.eql({
+      errors: [],
+      loadOptions: {
+        filter: [
+          ['dtFinished', '>=', new Date('2018-08-01T16:20:30.000Z')],
+          'and',
+          ['dtFinished', '<', new Date('2018-08-01T16:20:30.000Z')]
+        ]
+      },
+      processingOptions: {}
+    });
+  });
+
+  test('issue #10 - filter works when given as string', function() {
+    expect(
+      getOptions({
+        filter:
+          '[["dtFinished",">=","2018-08-01T16:20:30.000Z"],"and",["dtFinished","<","2018-08-01T16:20:30.000Z"]]'
+      })
+    ).to.eql({
+      errors: [],
+      loadOptions: {
+        filter: [
+          ['dtFinished', '>=', new Date('2018-08-01T16:20:30.000Z')],
+          'and',
+          ['dtFinished', '<', new Date('2018-08-01T16:20:30.000Z')]
+        ]
+      },
+      processingOptions: {}
+    });
+  });
+
+  test('total count, group, group count', function() {
+    testOptions(
       'sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&requireTotalCount=true&group%5B0%5D%5Bselector%5D=date2&group%5B0%5D%5BisExpanded%5D=false&requireGroupCount=true',
       {
         errors: [],
@@ -128,8 +172,8 @@ describe('getOptions', function() {
     );
   });
 
-  it('sort, filter with date', function() {
-    test(
+  test('sort, filter with date', function() {
+    testOptions(
       'sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&filter%5B0%5D%5B0%5D=date2&filter%5B0%5D%5B1%5D=%3D&filter%5B0%5D%5B2%5D=2017-07-13T00%3A00%3A00.000Z',
       {
         errors: [],
@@ -147,8 +191,8 @@ describe('getOptions', function() {
     );
   });
 
-  it('take, total count, filter with int', function() {
-    test(
+  test('take, total count, filter with int', function() {
+    testOptions(
       'take=10&requireTotalCount=true&filter%5B0%5D%5B0%5D=int1&filter%5B0%5D%5B1%5D=%3D&filter%5B0%5D%5B2%5D=4',
       {
         errors: [],
@@ -165,8 +209,8 @@ describe('getOptions', function() {
     );
   });
 
-  it('summaryQueryLimit, skip, take, requireTotalCount, totalSummary, tzOffset', function() {
-    test(
+  test('summaryQueryLimit, skip, take, requireTotalCount, totalSummary, tzOffset', function() {
+    testOptions(
       'summaryQueryLimit=500&skip=0&take=20&requireTotalCount=true&totalSummary=%5B%7B%22selector%22%3A%22date1%22%2C%22summaryType%22%3A%22max%22%7D%2C%7B%22selector%22%3A%22int1%22%2C%22summaryType%22%3A%22avg%22%7D%2C%7B%22selector%22%3A%22int1%22%2C%22summaryType%22%3A%22sum%22%7D%5D&tzOffset=-60',
       {
         errors: [],
@@ -197,8 +241,8 @@ describe('getOptions', function() {
     );
   });
 
-  it('summaryQueryLimit, skip, take, requireTotalCount, totalSummary, group, requireGroupCount, groupSummary, tzOffset', function() {
-    test(
+  test('summaryQueryLimit, skip, take, requireTotalCount, totalSummary, group, requireGroupCount, groupSummary, tzOffset', function() {
+    testOptions(
       'summaryQueryLimit=500&skip=0&take=20&requireTotalCount=true&totalSummary=%5B%7B%22selector%22%3A%22date1%22%2C%22summaryType%22%3A%22max%22%7D%2C%7B%22selector%22%3A%22int1%22%2C%22summaryType%22%3A%22avg%22%7D%2C%7B%22selector%22%3A%22int1%22%2C%22summaryType%22%3A%22sum%22%7D%5D&group=%5B%7B%22selector%22%3A%22int1%22%2C%22desc%22%3Afalse%2C%22isExpanded%22%3Afalse%7D%5D&requireGroupCount=true&groupSummary=%5B%7B%22selector%22%3A%22date1%22%2C%22summaryType%22%3A%22min%22%7D%2C%7B%22selector%22%3A%22int1%22%2C%22summaryType%22%3A%22avg%22%7D%2C%7B%22selector%22%3A%22int1%22%2C%22summaryType%22%3A%22sum%22%7D%2C%7B%22summaryType%22%3A%22count%22%7D%5D&tzOffset=-60',
       {
         errors: [],

@@ -3,22 +3,29 @@ export PATH := ./node_modules/.bin:$(PATH)
 
 SRC = index.js
 
-TESTS = $(wildcard src/tests/*.js)
+TESTS = $(wildcard src/*.test.js)
+DISTTESTS = $(wildcard dist/*.test.js)
 
 .PHONY: test publish
 
 test:
+	ID=`docker run -p=27017:27017 -d mongo:latest`; \
+	   sleep 2; \
+	mocha -u tdd $(TESTS) ; \
+	docker kill $$ID
+
+disttest:
 	npm run prepare
 	ID=`docker run -p=27017:27017 -d mongo:latest`; \
 	   sleep 2; \
-	mocha --harmony $(TESTS) ; \
+	mocha -u tdd $(DISTTESTS) ; \
 	docker kill $$ID
 
 test-coverage:
 	npm run prepare
 	ID=`docker run -p=27017:27017 -d mongo:latest`; \
 	   sleep 2; \
-	nyc --reporter=text mocha --harmony $(TESTS) ; \
+	nyc --reporter=text mocha -u tdd $(TESTS) ; \
 	nyc report --reporter=lcov ; \
 	docker kill $$ID
 
