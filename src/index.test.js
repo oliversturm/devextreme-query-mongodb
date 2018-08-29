@@ -9,7 +9,11 @@ const query = require('.');
 
 const TESTRECORD_COUNT = 100;
 
-const db = () => MongoClient.connect('mongodb://localhost:27017/dxtqutests');
+const initClient = () =>
+  MongoClient.connect(
+    'mongodb://localhost:27017/dxtqutests',
+    { useNewUrlParser: true }
+  );
 
 function testQueryValues(
   tdone,
@@ -22,33 +26,38 @@ function testQueryValues(
     return new Date(start + addDays * (24 * 60 * 60 * 1000));
   }
 
-  db()
+  initClient()
     .then(
-      db =>
+      client =>
         /* eslint-disable promise/always-return, promise/no-nesting */
-        db.dropDatabase().then(() => {
-          const values = db.collection('values');
-          const currentYear = 2017;
-          const currentYearStart = new Date(currentYear, 0, 1).valueOf();
-          const nextYearStart = new Date(currentYear + 1, 0, 1).valueOf();
+        client
+          .db()
+          .dropDatabase()
+          .then(() => {
+            const values = client.db().collection('values');
+            const currentYear = 2017;
+            const currentYearStart = new Date(currentYear, 0, 1).valueOf();
+            const nextYearStart = new Date(currentYear + 1, 0, 1).valueOf();
 
-          return Promise.all(
-            getTestDataPromises
-              ? getTestDataPromises(values)
-              : Array.from(new Array(TESTRECORD_COUNT), (v, i) => i).map(n =>
-                  values.insertOne({
-                    date1: date(currentYearStart, n),
-                    date2: date(nextYearStart, n),
-                    int1: n % 10,
-                    int2: n % 5,
-                    string: 'Item ' + n
-                  })
-                )
-          )
-            .then(() => query(values, loadOptions, contextOptions))
-            .then(test)
-            .then(tdone);
-        })
+            return Promise.all(
+              getTestDataPromises
+                ? getTestDataPromises(values)
+                : Array.from(new Array(TESTRECORD_COUNT), (v, i) => i).map(n =>
+                    values.insertOne({
+                      date1: date(currentYearStart, n),
+                      date2: date(nextYearStart, n),
+                      int1: n % 10,
+                      int2: n % 5,
+                      string: 'Item ' + n
+                    })
+                  )
+            )
+              .then(() => query(values, loadOptions, contextOptions))
+              .then(test)
+              .then(tdone);
+          })
+
+          .then(() => client.close())
       /* eslint-enable promise/always-return, promise/no-nesting */
     )
     .catch(err => tdone(err));

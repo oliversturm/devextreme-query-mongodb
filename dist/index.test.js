@@ -8,8 +8,8 @@ var query = require('.');
 
 var TESTRECORD_COUNT = 100;
 
-var db = function db() {
-  return MongoClient.connect('mongodb://localhost:27017/dxtqutests');
+var initClient = function initClient() {
+  return MongoClient.connect('mongodb://localhost:27017/dxtqutests', { useNewUrlParser: true });
 };
 
 function testQueryValues(tdone, loadOptions, test, getTestDataPromises, contextOptions) {
@@ -17,9 +17,9 @@ function testQueryValues(tdone, loadOptions, test, getTestDataPromises, contextO
     return new Date(start + addDays * (24 * 60 * 60 * 1000));
   }
 
-  db().then(function (db) {
-    return db.dropDatabase().then(function () {
-      var values = db.collection('values');
+  initClient().then(function (client) {
+    return client.db().dropDatabase().then(function () {
+      var values = client.db().collection('values');
       var currentYear = 2017;
       var currentYearStart = new Date(currentYear, 0, 1).valueOf();
       var nextYearStart = new Date(currentYear + 1, 0, 1).valueOf();
@@ -37,6 +37,8 @@ function testQueryValues(tdone, loadOptions, test, getTestDataPromises, contextO
       })).then(function () {
         return query(values, loadOptions, contextOptions);
       }).then(test).then(tdone);
+    }).then(function () {
+      return client.close();
     });
   }).catch(function (err) {
     return tdone(err);
