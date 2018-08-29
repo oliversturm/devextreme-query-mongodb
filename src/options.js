@@ -32,9 +32,12 @@ function fixFilterAndSearch(schema) {
 
   function fixSearch(se, so, sv) {
     if (!se || !so || !sv || typeof sv !== 'string') return sv;
-    const fieldName = typeof se === 'string'
-      ? schema[se]
-      : Array.isArray(se) ? se.find(e => (schema[e] ? e : null)) : null;
+    const fieldName =
+      typeof se === 'string'
+        ? schema[se]
+        : Array.isArray(se)
+          ? se.find(e => (schema[e] ? e : null))
+          : null;
     return fieldName ? fixValue(schema[fieldName], sv) : sv;
   }
 
@@ -122,15 +125,12 @@ function validateAll(list, checker, short = true) {
   );
 }
 
-function parseOrFix(arg) {
-  // console.log(`parseOrFix with ${JSON.stringify(arg)}`);
-
-  return typeof arg === 'string'
-    ? JSON.parse(arg)
-    : valueFixers.fixObject(
-        arg,
-        valueFixers.defaultFixers.concat(valueFixers.fixBool)
-      );
+function parseAndFix(arg) {
+  const ob = typeof arg === 'string' ? JSON.parse(arg) : arg;
+  return valueFixers.fixObject(
+    ob,
+    valueFixers.defaultFixers.concat(valueFixers.fixBool)
+  );
 }
 
 function representsTrue(val) {
@@ -225,7 +225,7 @@ function totalCountOptions(qry) {
 
 function sortOptions(qry) {
   return check(qry, 'sort', sort => {
-    const sortOptions = parseOrFix(sort);
+    const sortOptions = parseAndFix(sort);
     if (Array.isArray(sortOptions) && sortOptions.length > 0) {
       const vr = validateAll(sortOptions, sortOptionsChecker);
       if (vr.valid)
@@ -243,7 +243,7 @@ function groupOptions(qry) {
     qry,
     'group',
     group => {
-      const groupOptions = parseOrFix(group);
+      const groupOptions = parseAndFix(group);
       if (Array.isArray(groupOptions)) {
         if (groupOptions.length > 0) {
           const vr = validateAll(groupOptions, groupOptionsChecker);
@@ -264,7 +264,7 @@ function groupOptions(qry) {
                 requireGroupCount => representsTrue(requireGroupCount)
               ),
               check(qry, 'groupSummary', groupSummary => {
-                const gsOptions = parseOrFix(groupSummary);
+                const gsOptions = parseAndFix(groupSummary);
                 if (Array.isArray(gsOptions)) {
                   if (gsOptions.length > 0) {
                     const vr = validateAll(gsOptions, summaryOptionsChecker);
@@ -273,13 +273,17 @@ function groupOptions(qry) {
                         groupSummary: gsOptions
                       };
                     else
-                      throw `Group summary parameter validation errors: ${JSON.stringify(vr.errors)}`;
+                      throw `Group summary parameter validation errors: ${JSON.stringify(
+                        vr.errors
+                      )}`;
                   } else return {}; // ignore empty array
                 } else return null;
               })
             ]);
           else
-            throw `Group parameter validation errors: ${JSON.stringify(vr.errors)}`;
+            throw `Group parameter validation errors: ${JSON.stringify(
+              vr.errors
+            )}`;
         } else return {}; // ignore empty array
       } else return null;
     },
@@ -291,7 +295,7 @@ function groupOptions(qry) {
 
 function totalSummaryOptions(qry) {
   return check(qry, 'totalSummary', totalSummary => {
-    const tsOptions = parseOrFix(totalSummary);
+    const tsOptions = parseAndFix(totalSummary);
     if (Array.isArray(tsOptions)) {
       if (tsOptions.length > 0) {
         const vr = validateAll(tsOptions, summaryOptionsChecker);
@@ -300,7 +304,9 @@ function totalSummaryOptions(qry) {
             totalSummary: tsOptions
           };
         else
-          throw `Total summary parameter validation errors: ${JSON.stringify(vr.errors)}`;
+          throw `Total summary parameter validation errors: ${JSON.stringify(
+            vr.errors
+          )}`;
       } else return {}; // ignore empty array
     } else return null;
   });
@@ -308,7 +314,7 @@ function totalSummaryOptions(qry) {
 
 function filterOptions(qry) {
   return check(qry, 'filter', filter => {
-    const filterOptions = parseOrFix(filter);
+    const filterOptions = parseAndFix(filter);
     if (typeof filterOptions === 'string' || Array.isArray(filterOptions))
       return {
         filter: filterOptions
@@ -335,7 +341,7 @@ function searchOptions(qry) {
 
 function selectOptions(qry) {
   return check(qry, 'select', select => {
-    const selectOptions = parseOrFix(select);
+    const selectOptions = parseAndFix(select);
     if (typeof selectOptions === 'string')
       return {
         select: [selectOptions]
@@ -347,7 +353,9 @@ function selectOptions(qry) {
             select: selectOptions
           };
         else
-          throw `Select array parameter has invalid content: ${JSON.stringify(selectOptions)}`;
+          throw `Select array parameter has invalid content: ${JSON.stringify(
+            selectOptions
+          )}`;
       } else return {}; // ignore empty array
     } else return null;
   });
