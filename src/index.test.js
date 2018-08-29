@@ -53,11 +53,11 @@ function testQueryValues(
                   )
             )
               .then(() => query(values, loadOptions, contextOptions))
-              .then(test)
-              .then(tdone);
+              .then(test);
           })
 
           .then(() => client.close())
+          .then(tdone)
       /* eslint-enable promise/always-return, promise/no-nesting */
     )
     .catch(err => tdone(err));
