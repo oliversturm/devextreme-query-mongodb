@@ -93,6 +93,30 @@ suite('getOptions', function () {
     });
   });
 
+  test('issue #10 - filter works when given as array', function () {
+    expect(getOptions({
+      filter: [['dtFinished', '>=', '2018-08-01T16:20:30.000Z'], 'and', ['dtFinished', '<', '2018-08-01T16:20:30.000Z']]
+    })).to.eql({
+      errors: [],
+      loadOptions: {
+        filter: [['dtFinished', '>=', new Date('2018-08-01T16:20:30.000Z')], 'and', ['dtFinished', '<', new Date('2018-08-01T16:20:30.000Z')]]
+      },
+      processingOptions: {}
+    });
+  });
+
+  test('issue #10 - filter works when given as string', function () {
+    expect(getOptions({
+      filter: '[["dtFinished",">=","2018-08-01T16:20:30.000Z"],"and",["dtFinished","<","2018-08-01T16:20:30.000Z"]]'
+    })).to.eql({
+      errors: [],
+      loadOptions: {
+        filter: [['dtFinished', '>=', new Date('2018-08-01T16:20:30.000Z')], 'and', ['dtFinished', '<', new Date('2018-08-01T16:20:30.000Z')]]
+      },
+      processingOptions: {}
+    });
+  });
+
   test('total count, group, group count', function () {
     testOptions('sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&requireTotalCount=true&group%5B0%5D%5Bselector%5D=date2&group%5B0%5D%5BisExpanded%5D=false&requireGroupCount=true', {
       errors: [],
