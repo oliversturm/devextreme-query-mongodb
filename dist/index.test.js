@@ -36,10 +36,10 @@ function testQueryValues(tdone, loadOptions, test, getTestDataPromises, contextO
         });
       })).then(function () {
         return query(values, loadOptions, contextOptions);
-      }).then(test).then(tdone);
+      }).then(test);
     }).then(function () {
       return client.close();
-    });
+    }).then(tdone);
   }).catch(function (err) {
     return tdone(err);
   });
