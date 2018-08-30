@@ -2,6 +2,8 @@
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
+var _marked = regeneratorRuntime.mark(_fixAndChainWithIncompleteAnds);
+
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 var createGroupFieldName = function createGroupFieldName(groupIndex) {
@@ -187,6 +189,156 @@ var constructRegex = function constructRegex(fieldName, regex) {
   return _defineProperty({}, fieldName, { $regex: regex, $options: '' });
 };
 
+var isCorrectFilterOperatorStructure = function isCorrectFilterOperatorStructure(element, operator) {
+  return element.reduce(function (r, v) {
+    if (r.previous) return { ok: r.ok, previous: false };else return {
+      ok: r.ok && typeof v === 'string' && v.toLowerCase() === operator,
+      previous: true
+    };
+  }, { ok: true, previous: true }).ok;
+};
+
+var isAndChainWithIncompleteAnds = function isAndChainWithIncompleteAnds(element) {
+  if (!Array.isArray(element)) return false;
+  if (element.length < 2) return false;
+  if (!Array.isArray(element[0])) return false;
+
+  if (isCorrectFilterOperatorStructure(element, 'and')) return false;
+  return element.reduce(function (r, v) {
+    return r && (typeof v === 'string' && v.toLowerCase() === 'and' || Array.isArray(v));
+  }, true);
+};
+
+function _fixAndChainWithIncompleteAnds(chain) {
+  var firstDone, expectAnd, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, item;
+
+  return regeneratorRuntime.wrap(function _fixAndChainWithIncompleteAnds$(_context) {
+    while (1) {
+      switch (_context.prev = _context.next) {
+        case 0:
+          firstDone = false;
+          expectAnd = true;
+          _iteratorNormalCompletion = true;
+          _didIteratorError = false;
+          _iteratorError = undefined;
+          _context.prev = 5;
+          _iterator = chain[Symbol.iterator]();
+
+        case 7:
+          if (_iteratorNormalCompletion = (_step = _iterator.next()).done) {
+            _context.next = 35;
+            break;
+          }
+
+          item = _step.value;
+
+          if (firstDone) {
+            _context.next = 15;
+            break;
+          }
+
+          _context.next = 12;
+          return item;
+
+        case 12:
+          firstDone = true;
+          _context.next = 32;
+          break;
+
+        case 15:
+          if (!expectAnd) {
+            _context.next = 28;
+            break;
+          }
+
+          if (!(typeof item === 'string')) {
+            _context.next = 22;
+            break;
+          }
+
+          _context.next = 19;
+          return 'and';
+
+        case 19:
+          expectAnd = false;
+          _context.next = 26;
+          break;
+
+        case 22:
+          _context.next = 24;
+          return 'and';
+
+        case 24:
+          _context.next = 26;
+          return item;
+
+        case 26:
+          _context.next = 32;
+          break;
+
+        case 28:
+          if (!(typeof item !== 'string')) {
+            _context.next = 32;
+            break;
+          }
+
+          _context.next = 31;
+          return item;
+
+        case 31:
+          expectAnd = true;
+
+        case 32:
+          _iteratorNormalCompletion = true;
+          _context.next = 7;
+          break;
+
+        case 35:
+          _context.next = 41;
+          break;
+
+        case 37:
+          _context.prev = 37;
+          _context.t0 = _context['catch'](5);
+          _didIteratorError = true;
+          _iteratorError = _context.t0;
+
+        case 41:
+          _context.prev = 41;
+          _context.prev = 42;
+
+          if (!_iteratorNormalCompletion && _iterator.return) {
+            _iterator.return();
+          }
+
+        case 44:
+          _context.prev = 44;
+
+          if (!_didIteratorError) {
+            _context.next = 47;
+            break;
+          }
+
+          throw _iteratorError;
+
+        case 47:
+          return _context.finish(44);
+
+        case 48:
+          return _context.finish(41);
+
+        case 49:
+        case 'end':
+          return _context.stop();
+      }
+    }
+  }, _marked, this, [[5, 37, 41, 49], [42,, 44, 48]]);
+}
+
+var fixAndChainWithIncompleteAnds = function fixAndChainWithIncompleteAnds(element) {
+  return Array.from(_fixAndChainWithIncompleteAnds(element));
+};
+
 var parseFilter = function parseFilter(element) {
 
   var rval = function rval(match, fieldList) {
@@ -198,7 +350,7 @@ var parseFilter = function parseFilter(element) {
     var fieldName = nf ? nf.filterFieldName : element;
     return rval(construct(fieldName, '$eq', true), [element]);
   } else if (Array.isArray(element)) {
-    if (element.length === 1 && element[0].length) {
+    if (element.length === 1 && Array.isArray(element[0])) {
       return parseFilter(element[0]);
     } else if (element.length === 2) {
       if (element[0] === '!') {
@@ -209,65 +361,62 @@ var parseFilter = function parseFilter(element) {
         if (match) return rval({
           $nor: [match]
         }, fieldList);else return null;
-      } else return null;
-    } else if (element.length % 2 === 1) {
-      var operator = String(element[1]).toLowerCase();
+      } else if (isAndChainWithIncompleteAnds(element)) return parseFilter(fixAndChainWithIncompleteAnds(element));else return null;
+    } else {
+      if (isAndChainWithIncompleteAnds(element)) return parseFilter(fixAndChainWithIncompleteAnds(element));else if (element.length % 2 === 1) {
+        var operator = String(element[1]).toLowerCase();
 
-      if (['and', 'or'].includes(operator)) {
-        if (element.reduce(function (r, v) {
-          if (r.previous) return { ok: r.ok, previous: false };else return {
-            ok: r.ok && v.toLowerCase() === operator,
-            previous: true
-          };
-        }, { ok: true, previous: true }).ok) {
-          var result = element.reduce(function (r, v) {
-            if (r.previous) return _extends({}, r, { previous: false });else {
-              var nestedResult = parseFilter(v);
-              var nestedFilter = nestedResult && nestedResult.match;
-              var _fieldList = nestedResult ? nestedResult.fieldList : [];
-              if (nestedFilter) r.list.push(nestedFilter);
-              return {
-                list: r.list,
-                fieldList: r.fieldList.concat(_fieldList),
-                previous: true
-              };
+        if (['and', 'or'].includes(operator)) {
+          if (isCorrectFilterOperatorStructure(element, operator)) {
+            var result = element.reduce(function (r, v) {
+              if (r.previous) return _extends({}, r, { previous: false });else {
+                var nestedResult = parseFilter(v);
+                var nestedFilter = nestedResult && nestedResult.match;
+                var _fieldList = nestedResult ? nestedResult.fieldList : [];
+                if (nestedFilter) r.list.push(nestedFilter);
+                return {
+                  list: r.list,
+                  fieldList: r.fieldList.concat(_fieldList),
+                  previous: true
+                };
+              }
+            }, { list: [], fieldList: [], previous: false });
+
+            return rval(_defineProperty({}, '$' + operator, result.list), result.fieldList);
+          } else return null;
+        } else {
+          if (element.length === 3) {
+            var _nf = checkNestedField(element[0]);
+            var _fieldName2 = _nf ? _nf.filterFieldName : element[0];
+
+            switch (operator) {
+              case '=':
+                return rval(construct(_fieldName2, '$eq', element[2]), [element[0]]);
+              case '<>':
+                return rval(construct(_fieldName2, '$ne', element[2]), [element[0]]);
+              case '>':
+                return rval(construct(_fieldName2, '$gt', element[2]), [element[0]]);
+              case '>=':
+                return rval(construct(_fieldName2, '$gte', element[2]), [element[0]]);
+              case '<':
+                return rval(construct(_fieldName2, '$lt', element[2]), [element[0]]);
+              case '<=':
+                return rval(construct(_fieldName2, '$lte', element[2]), [element[0]]);
+              case 'startswith':
+                return rval(constructRegex(_fieldName2, '^' + element[2]), [element[0]]);
+              case 'endswith':
+                return rval(constructRegex(_fieldName2, element[2] + '$'), [element[0]]);
+              case 'contains':
+                return rval(constructRegex(_fieldName2, element[2]), [element[0]]);
+              case 'notcontains':
+                return rval(constructRegex(_fieldName2, '^((?!' + element[2] + ').)*$'), [element[0]]);
+              default:
+                return null;
             }
-          }, { list: [], fieldList: [], previous: false });
-
-          return rval(_defineProperty({}, '$' + operator, result.list), result.fieldList);
-        } else return null;
-      } else {
-        if (element.length === 3) {
-          var _nf = checkNestedField(element[0]);
-          var _fieldName2 = _nf ? _nf.filterFieldName : element[0];
-
-          switch (operator) {
-            case '=':
-              return rval(construct(_fieldName2, '$eq', element[2]), [element[0]]);
-            case '<>':
-              return rval(construct(_fieldName2, '$ne', element[2]), [element[0]]);
-            case '>':
-              return rval(construct(_fieldName2, '$gt', element[2]), [element[0]]);
-            case '>=':
-              return rval(construct(_fieldName2, '$gte', element[2]), [element[0]]);
-            case '<':
-              return rval(construct(_fieldName2, '$lt', element[2]), [element[0]]);
-            case '<=':
-              return rval(construct(_fieldName2, '$lte', element[2]), [element[0]]);
-            case 'startswith':
-              return rval(constructRegex(_fieldName2, '^' + element[2]), [element[0]]);
-            case 'endswith':
-              return rval(constructRegex(_fieldName2, element[2] + '$'), [element[0]]);
-            case 'contains':
-              return rval(constructRegex(_fieldName2, element[2]), [element[0]]);
-            case 'notcontains':
-              return rval(constructRegex(_fieldName2, '^((?!' + element[2] + ').)*$'), [element[0]]);
-            default:
-              return null;
-          }
-        } else return null;
-      }
-    } else return null;
+          } else return null;
+        }
+      } else return null;
+    }
   } else return null;
 };
 
@@ -301,13 +450,13 @@ var createSortPipeline = function createSortPipeline(sort) {
 var createSummaryPipeline = function createSummaryPipeline(summary) {
   if (summary) {
     var gc = { _id: null };
-    var _iteratorNormalCompletion = true;
-    var _didIteratorError = false;
-    var _iteratorError = undefined;
+    var _iteratorNormalCompletion2 = true;
+    var _didIteratorError2 = false;
+    var _iteratorError2 = undefined;
 
     try {
-      for (var _iterator = summary[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-        var s = _step.value;
+      for (var _iterator2 = summary[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+        var s = _step2.value;
 
         switch (s.summaryType) {
           case 'sum':
@@ -325,16 +474,16 @@ var createSummaryPipeline = function createSummaryPipeline(summary) {
         }
       }
     } catch (err) {
-      _didIteratorError = true;
-      _iteratorError = err;
+      _didIteratorError2 = true;
+      _iteratorError2 = err;
     } finally {
       try {
-        if (!_iteratorNormalCompletion && _iterator.return) {
-          _iterator.return();
+        if (!_iteratorNormalCompletion2 && _iterator2.return) {
+          _iterator2.return();
         }
       } finally {
-        if (_didIteratorError) {
-          throw _iteratorError;
+        if (_didIteratorError2) {
+          throw _iteratorError2;
         }
       }
     }
@@ -356,28 +505,28 @@ var createSearchPipeline = function createSearchPipeline(expr, op, val) {
   var criteria = void 0;
   if (typeof expr === 'string') criteria = [expr, op, val];else if (expr.length > 0) {
     criteria = [];
-    var _iteratorNormalCompletion2 = true;
-    var _didIteratorError2 = false;
-    var _iteratorError2 = undefined;
+    var _iteratorNormalCompletion3 = true;
+    var _didIteratorError3 = false;
+    var _iteratorError3 = undefined;
 
     try {
-      for (var _iterator2 = expr[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-        var exprItem = _step2.value;
+      for (var _iterator3 = expr[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
+        var exprItem = _step3.value;
 
         if (criteria.length) criteria.push('or');
         criteria.push([exprItem, op, val]);
       }
     } catch (err) {
-      _didIteratorError2 = true;
-      _iteratorError2 = err;
+      _didIteratorError3 = true;
+      _iteratorError3 = err;
     } finally {
       try {
-        if (!_iteratorNormalCompletion2 && _iterator2.return) {
-          _iterator2.return();
+        if (!_iteratorNormalCompletion3 && _iterator3.return) {
+          _iterator3.return();
         }
       } finally {
-        if (_didIteratorError2) {
-          throw _iteratorError2;
+        if (_didIteratorError3) {
+          throw _iteratorError3;
         }
       }
     }
@@ -392,26 +541,26 @@ var createSelectProjectExpression = function createSelectProjectExpression(field
   if (fields && fields.length > 0) {
     var project = {};
     if (explicitId) project._id = '$_id';
-    var _iteratorNormalCompletion3 = true;
-    var _didIteratorError3 = false;
-    var _iteratorError3 = undefined;
+    var _iteratorNormalCompletion4 = true;
+    var _didIteratorError4 = false;
+    var _iteratorError4 = undefined;
 
     try {
-      for (var _iterator3 = fields[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
-        var field = _step3.value;
+      for (var _iterator4 = fields[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
+        var field = _step4.value;
         project[field] = '$' + field;
       }
     } catch (err) {
-      _didIteratorError3 = true;
-      _iteratorError3 = err;
+      _didIteratorError4 = true;
+      _iteratorError4 = err;
     } finally {
       try {
-        if (!_iteratorNormalCompletion3 && _iterator3.return) {
-          _iterator3.return();
+        if (!_iteratorNormalCompletion4 && _iterator4.return) {
+          _iterator4.return();
         }
       } finally {
-        if (_didIteratorError3) {
-          throw _iteratorError3;
+        if (_didIteratorError4) {
+          throw _iteratorError4;
         }
       }
     }
@@ -535,26 +684,26 @@ var createRemoveNestedFieldsPipeline = function createRemoveNestedFieldsPipeline
   if (nestedFields.length === 0) return [];
 
   var pd = {};
-  var _iteratorNormalCompletion4 = true;
-  var _didIteratorError4 = false;
-  var _iteratorError4 = undefined;
+  var _iteratorNormalCompletion5 = true;
+  var _didIteratorError5 = false;
+  var _iteratorError5 = undefined;
 
   try {
-    for (var _iterator4 = nestedFields[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
-      var f = _step4.value;
+    for (var _iterator5 = nestedFields[Symbol.iterator](), _step5; !(_iteratorNormalCompletion5 = (_step5 = _iterator5.next()).done); _iteratorNormalCompletion5 = true) {
+      var f = _step5.value;
       pd[f] = 0;
     }
   } catch (err) {
-    _didIteratorError4 = true;
-    _iteratorError4 = err;
+    _didIteratorError5 = true;
+    _iteratorError5 = err;
   } finally {
     try {
-      if (!_iteratorNormalCompletion4 && _iterator4.return) {
-        _iterator4.return();
+      if (!_iteratorNormalCompletion5 && _iterator5.return) {
+        _iterator5.return();
       }
     } finally {
-      if (_didIteratorError4) {
-        throw _iteratorError4;
+      if (_didIteratorError5) {
+        throw _iteratorError5;
       }
     }
   }
@@ -587,6 +736,9 @@ module.exports = {
     createFilterPipeline: createFilterPipeline,
     createSearchPipeline: createSearchPipeline,
     checkNestedField: checkNestedField,
-    createAddNestedFieldsPipeline: createAddNestedFieldsPipeline
+    createAddNestedFieldsPipeline: createAddNestedFieldsPipeline,
+    isAndChainWithIncompleteAnds: isAndChainWithIncompleteAnds,
+    fixAndChainWithIncompleteAnds: fixAndChainWithIncompleteAnds,
+    isCorrectFilterOperatorStructure: isCorrectFilterOperatorStructure
   }
 };

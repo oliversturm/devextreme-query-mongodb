@@ -235,6 +235,65 @@ const constructRegex = (fieldName, regex) => ({
   [fieldName]: { $regex: regex, $options: '' }
 });
 
+const isCorrectFilterOperatorStructure = (element, operator) =>
+  element.reduce(
+    (r, v) => {
+      if (r.previous) return { ok: r.ok, previous: false };
+      else
+        return {
+          ok: r.ok && typeof v === 'string' && v.toLowerCase() === operator,
+          previous: true
+        };
+    },
+    { ok: true, previous: true }
+  ).ok;
+
+const isAndChainWithIncompleteAnds = element => {
+  if (!Array.isArray(element)) return false;
+  if (element.length < 2) return false;
+  if (!Array.isArray(element[0])) return false;
+  // this is important to prevent endless recursion
+  if (isCorrectFilterOperatorStructure(element, 'and')) return false;
+  return element.reduce(
+    (r, v) =>
+      r &&
+      ((typeof v === 'string' && v.toLowerCase() === 'and') ||
+        Array.isArray(v)),
+    true
+  );
+};
+
+function* _fixAndChainWithIncompleteAnds(chain) {
+  // the function assumes that
+  // isAndChainWithIncompleteAnds(chain) === true
+  let firstDone = false;
+  let expectAnd = true;
+  for (const item of chain) {
+    if (!firstDone) {
+      yield item;
+      firstDone = true;
+    } else {
+      if (expectAnd) {
+        if (typeof item === 'string') {
+          yield 'and';
+          expectAnd = false;
+        } else {
+          yield 'and';
+          yield item;
+        }
+      } else {
+        if (typeof item !== 'string') {
+          yield item;
+          expectAnd = true;
+        }
+      }
+    }
+  }
+}
+
+const fixAndChainWithIncompleteAnds = element =>
+  Array.from(_fixAndChainWithIncompleteAnds(element));
+
 // eslint-disable-next-line complexity
 const parseFilter = element => {
   // Element can be a string denoting a field name - I don't know if that's a case
@@ -242,12 +301,12 @@ const parseFilter = element => {
   // an expression like [ "!", "boolValueField" ]
   // In the string case, I return a truth-checking filter.
   //
-  // Otherwise, element can be an array with two items
+  // Element can be an array with two items
   // For two items:
   // 0: unary operator
   // 1: operand
   //
-  // Otherwise, element can be an element with an odd number of items
+  // Element can be an array with an odd number of items
   // For three items:
   // 0: operand 1 - this is described as the "getter" in the docs - i.e. field name -
   //    but in the cases of "and" and "or" it could be another nested element
@@ -259,7 +318,7 @@ const parseFilter = element => {
   // 0: operand 1
   // 1: "or" or "and"
   // 2: operand 2
-  // 3: "or" or "and" - must be the same as (1)
+  // 3: "or" or "and" - must be the same as (1) - see comment in test "incorrect operator chain"
   // 4: operand 3
   // .... etc
   //
@@ -271,7 +330,7 @@ const parseFilter = element => {
     const fieldName = nf ? nf.filterFieldName : element;
     return rval(construct(fieldName, '$eq', true), [element]);
   } else if (Array.isArray(element)) {
-    if (element.length === 1 && element[0].length) {
+    if (element.length === 1 && Array.isArray(element[0])) {
       // assuming a nested array in this case:
       // the pivot grid sometimes does this
       // [ [ "field", "=", 5 ] ]
@@ -288,99 +347,94 @@ const parseFilter = element => {
             fieldList
           );
         else return null;
+      } else if (isAndChainWithIncompleteAnds(element))
+        return parseFilter(fixAndChainWithIncompleteAnds(element));
+      else return null;
+    } else {
+      if (isAndChainWithIncompleteAnds(element))
+        return parseFilter(fixAndChainWithIncompleteAnds(element));
+      else if (element.length % 2 === 1) {
+        // odd number of elements - let's see what the operator is
+        const operator = String(element[1]).toLowerCase();
+
+        if (['and', 'or'].includes(operator)) {
+          if (isCorrectFilterOperatorStructure(element, operator)) {
+            // all operators are the same - build a list of conditions from the nested
+            // items, combine with the operator
+            let result = element.reduce(
+              (r, v) => {
+                if (r.previous) return { ...r, previous: false };
+                else {
+                  const nestedResult = parseFilter(v);
+                  const nestedFilter = nestedResult && nestedResult.match;
+                  const fieldList = nestedResult ? nestedResult.fieldList : [];
+                  if (nestedFilter) r.list.push(nestedFilter);
+                  return {
+                    list: r.list,
+                    fieldList: r.fieldList.concat(fieldList),
+                    previous: true
+                  };
+                }
+              },
+              { list: [], fieldList: [], previous: false }
+            );
+
+            return rval({ ['$' + operator]: result.list }, result.fieldList);
+          } else return null;
+        } else {
+          if (element.length === 3) {
+            const nf = checkNestedField(element[0]);
+            const fieldName = nf ? nf.filterFieldName : element[0];
+
+            switch (operator) {
+              case '=':
+                return rval(construct(fieldName, '$eq', element[2]), [
+                  element[0]
+                ]);
+              case '<>':
+                return rval(construct(fieldName, '$ne', element[2]), [
+                  element[0]
+                ]);
+              case '>':
+                return rval(construct(fieldName, '$gt', element[2]), [
+                  element[0]
+                ]);
+              case '>=':
+                return rval(construct(fieldName, '$gte', element[2]), [
+                  element[0]
+                ]);
+              case '<':
+                return rval(construct(fieldName, '$lt', element[2]), [
+                  element[0]
+                ]);
+              case '<=':
+                return rval(construct(fieldName, '$lte', element[2]), [
+                  element[0]
+                ]);
+              case 'startswith':
+                return rval(constructRegex(fieldName, '^' + element[2]), [
+                  element[0]
+                ]);
+              case 'endswith':
+                return rval(constructRegex(fieldName, element[2] + '$'), [
+                  element[0]
+                ]);
+              case 'contains':
+                return rval(constructRegex(fieldName, element[2]), [
+                  element[0]
+                ]);
+              case 'notcontains':
+                return rval(
+                  constructRegex(fieldName, '^((?!' + element[2] + ').)*$'),
+                  [element[0]]
+                );
+              default:
+                return null;
+            }
+          } else return null;
+        }
       } else return null;
-    } else if (element.length % 2 === 1) {
-      // odd number of elements - let's see what the operator is
-      const operator = String(element[1]).toLowerCase();
-
-      if (['and', 'or'].includes(operator)) {
-        if (
-          element.reduce(
-            (r, v) => {
-              // check whether the chain contains only "and" or only "or" operators
-              if (r.previous) return { ok: r.ok, previous: false };
-              else
-                return {
-                  ok: r.ok && v.toLowerCase() === operator,
-                  previous: true
-                };
-            },
-            { ok: true, previous: true }
-          ).ok
-        ) {
-          // all operators are the same - build a list of conditions from the nested
-          // items, combine with the operator
-          let result = element.reduce(
-            (r, v) => {
-              if (r.previous) return { ...r, previous: false };
-              else {
-                const nestedResult = parseFilter(v);
-                const nestedFilter = nestedResult && nestedResult.match;
-                const fieldList = nestedResult ? nestedResult.fieldList : [];
-                if (nestedFilter) r.list.push(nestedFilter);
-                return {
-                  list: r.list,
-                  fieldList: r.fieldList.concat(fieldList),
-                  previous: true
-                };
-              }
-            },
-            { list: [], fieldList: [], previous: false }
-          );
-
-          return rval({ ['$' + operator]: result.list }, result.fieldList);
-        } else return null;
-      } else {
-        if (element.length === 3) {
-          const nf = checkNestedField(element[0]);
-          const fieldName = nf ? nf.filterFieldName : element[0];
-
-          switch (operator) {
-            case '=':
-              return rval(construct(fieldName, '$eq', element[2]), [
-                element[0]
-              ]);
-            case '<>':
-              return rval(construct(fieldName, '$ne', element[2]), [
-                element[0]
-              ]);
-            case '>':
-              return rval(construct(fieldName, '$gt', element[2]), [
-                element[0]
-              ]);
-            case '>=':
-              return rval(construct(fieldName, '$gte', element[2]), [
-                element[0]
-              ]);
-            case '<':
-              return rval(construct(fieldName, '$lt', element[2]), [
-                element[0]
-              ]);
-            case '<=':
-              return rval(construct(fieldName, '$lte', element[2]), [
-                element[0]
-              ]);
-            case 'startswith':
-              return rval(constructRegex(fieldName, '^' + element[2]), [
-                element[0]
-              ]);
-            case 'endswith':
-              return rval(constructRegex(fieldName, element[2] + '$'), [
-                element[0]
-              ]);
-            case 'contains':
-              return rval(constructRegex(fieldName, element[2]), [element[0]]);
-            case 'notcontains':
-              return rval(
-                constructRegex(fieldName, '^((?!' + element[2] + ').)*$'),
-                [element[0]]
-              );
-            default:
-              return null;
-          }
-        } else return null;
-      }
-    } else return null;
+    }
   } else return null;
 };
 
@@ -664,6 +718,9 @@ module.exports = {
     createFilterPipeline,
     createSearchPipeline,
     checkNestedField,
-    createAddNestedFieldsPipeline
+    createAddNestedFieldsPipeline,
+    isAndChainWithIncompleteAnds,
+    fixAndChainWithIncompleteAnds,
+    isCorrectFilterOperatorStructure
   }
 };

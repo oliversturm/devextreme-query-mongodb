@@ -24,7 +24,7 @@ disttest:
 	npm run prepare
 	ID=`docker run -p=27017:27017 -d mongo:latest`; \
 	   sleep 2; \
-	mocha -u tdd $(DISTTESTS) ; \
+	mocha -r babel-polyfill -u tdd $(DISTTESTS) ; \
 	docker kill $$ID
 
 test-coverage:

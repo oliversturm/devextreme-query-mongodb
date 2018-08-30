@@ -27,7 +27,10 @@ const {
   checkNestedField,
   createAddNestedFieldsPipeline,
   divInt,
-  subtractMod
+  subtractMod,
+  isAndChainWithIncompleteAnds,
+  fixAndChainWithIncompleteAnds,
+  isCorrectFilterOperatorStructure
 } = pipelines.testing;
 
 suite('pipelines', function() {
@@ -578,6 +581,76 @@ suite('pipelines', function() {
       );
     });
 
+    test('short "and" chain with no "ands"', function() {
+      testParseFilter(
+        [['field1', '=', 42], ['field2', '>', 10]],
+        {
+          $and: [
+            {
+              field1: { $eq: 42 }
+            },
+            {
+              field2: { $gt: 10 }
+            }
+          ]
+        },
+        ['field1', 'field2']
+      );
+    });
+
+    test('long "and" chain with no "ands"', function() {
+      testParseFilter(
+        [
+          ['field1', '=', 42],
+          ['field2', '>', 10],
+          ['field3', '<>', 'this thing'],
+          ['field4', '=', 11]
+        ],
+        {
+          $and: [
+            {
+              field1: { $eq: 42 }
+            },
+            {
+              field2: { $gt: 10 }
+            },
+            {
+              field3: { $ne: 'this thing' }
+            },
+            {
+              field4: { $eq: 11 }
+            }
+          ]
+        },
+        ['field1', 'field2', 'field3', 'field4']
+      );
+    });
+
+    test('"and" chain with incomplete "ands"', function() {
+      testParseFilter(
+        [
+          ['field1', '=', 42],
+          'and',
+          ['field2', '>', 10],
+          ['field3', '<>', 'this thing']
+        ],
+        {
+          $and: [
+            {
+              field1: { $eq: 42 }
+            },
+            {
+              field2: { $gt: 10 }
+            },
+            {
+              field3: { $ne: 'this thing' }
+            }
+          ]
+        },
+        ['field1', 'field2', 'field3']
+      );
+    });
+
     test('correct "or" chain', function() {
       testParseFilter(
         [
@@ -605,6 +678,13 @@ suite('pipelines', function() {
     });
 
     test('incorrect operator chain', function() {
+      // It is unclear from documentation (https://js.devexpress.com/Documentation/17_1/Guide/Data_Layer/Data_Layer/#Reading_Data)
+      // (section "Group Filter Operations") whether this case
+      // should be allowed. There is a statement saying "operator priority"
+      // depends on the implementation of the underlying store" -
+      // this could be interpreted to mean that a construct like this
+      // should be supported.
+      // This library currently assumes that this is invalid.
       testParseFilter(
         [
           ['field1', '=', 42],
@@ -938,6 +1018,254 @@ suite('pipelines', function() {
       assert.deepEqual(createRemoveNestedFieldsPipeline(['field1', 'field2']), [
         { $project: { field1: 0, field2: 0 } }
       ]);
+    });
+  });
+
+  suite('correctFilterOperatorStructure', function() {
+    test('detect correct structure', function() {
+      assert.isTrue(
+        isCorrectFilterOperatorStructure(
+          [
+            ['field', '=', 42],
+            'and',
+            ['field2', '>', 10],
+            'and',
+            ['field3', '=', 15],
+            'and',
+            ['field4', '=', 11],
+            'and',
+            ['field8', '>', 100]
+          ],
+          'and'
+        )
+      );
+    });
+
+    test('reject missing operators', function() {
+      assert.isFalse(
+        isCorrectFilterOperatorStructure(
+          [
+            ['field', '=', 42],
+            'and',
+            ['field2', '>', 10],
+            ['field3', '=', 15],
+            'and',
+            ['field4', '=', 11],
+            'and',
+            ['field8', '>', 100]
+          ],
+          'and'
+        )
+      );
+    });
+
+    test('reject incorrect operators', function() {
+      assert.isFalse(
+        isCorrectFilterOperatorStructure(
+          [
+            ['field', '=', 42],
+            'and',
+            ['field2', '>', 10],
+            'or',
+            ['field3', '=', 15],
+            'and',
+            ['field4', '=', 11],
+            'and',
+            ['field8', '>', 100]
+          ],
+          'and'
+        )
+      );
+    });
+  });
+
+  suite('andChainWithIncompleteAnds', function() {
+    test('detect short "and" chain with no "ands"', function() {
+      assert.isTrue(
+        isAndChainWithIncompleteAnds([['field', '=', 42], ['field2', '>', 10]])
+      );
+    });
+    test('detect three element "and" chain with no "ands"', function() {
+      assert.isTrue(
+        isAndChainWithIncompleteAnds([
+          ['field', '=', 42],
+          ['field2', '>', 10],
+          ['field3', '=', 15]
+        ])
+      );
+    });
+    test('detect long "and" chain with no "ands"', function() {
+      assert.isTrue(
+        isAndChainWithIncompleteAnds([
+          ['field', '=', 42],
+          ['field2', '>', 10],
+          ['field3', '=', 15],
+          ['field4', '=', 11],
+          ['field8', '>', 100]
+        ])
+      );
+    });
+    test('detect long "and" chain with one "and"', function() {
+      assert.isTrue(
+        isAndChainWithIncompleteAnds([
+          ['field', '=', 42],
+          'and',
+          ['field2', '>', 10],
+          ['field3', '=', 15],
+          ['field4', '=', 11],
+          ['field8', '>', 100]
+        ])
+      );
+    });
+    test('detect long "and" chain with some "ands"', function() {
+      assert.isTrue(
+        isAndChainWithIncompleteAnds([
+          ['field', '=', 42],
+          ['field2', '>', 10],
+          ['field3', '=', 15],
+          'and',
+          ['field4', '=', 11],
+          ['field8', '>', 100],
+          'and',
+          ['field5', '=', 13]
+        ])
+      );
+    });
+
+    test('reject unary operator chain', function() {
+      assert.isFalse(isAndChainWithIncompleteAnds(['!', ['field', '=', 10]]));
+    });
+
+    test('reject simple criterion', function() {
+      assert.isFalse(isAndChainWithIncompleteAnds(['field', '=', 10]));
+    });
+
+    test('reject chain with invalid operators', function() {
+      assert.isFalse(
+        isAndChainWithIncompleteAnds([
+          ['field', '=', 42],
+          ['field2', '>', 10],
+          ['field3', '=', 15],
+          'or',
+          ['field4', '=', 11],
+          ['field8', '>', 100]
+        ])
+      );
+    });
+
+    test('reject chain with complete set of operators', function() {
+      assert.isFalse(
+        isAndChainWithIncompleteAnds([
+          ['field', '=', 42],
+          'and',
+          ['field2', '>', 10],
+          'and',
+          ['field3', '=', 15],
+          'and',
+          ['field4', '=', 11],
+          'and',
+          ['field8', '>', 100]
+        ])
+      );
+    });
+
+    test('fix incomplete very short "and" chain with no "ands"', function() {
+      assert.deepEqual(
+        fixAndChainWithIncompleteAnds([
+          ['field', '=', 42],
+          ['field2', '>', 10]
+        ]),
+        [['field', '=', 42], 'and', ['field2', '>', 10]]
+      );
+    });
+
+    test('fix incomplete short "and" chain with no "ands"', function() {
+      assert.deepEqual(
+        fixAndChainWithIncompleteAnds([
+          ['field', '=', 42],
+          ['field2', '>', 10],
+          ['field3', '=', 15]
+        ]),
+        [
+          ['field', '=', 42],
+          'and',
+          ['field2', '>', 10],
+          'and',
+          ['field3', '=', 15]
+        ]
+      );
+    });
+
+    test('fix incomplete long "and" chain with no "ands"', function() {
+      assert.deepEqual(
+        fixAndChainWithIncompleteAnds([
+          ['field', '=', 42],
+          ['field2', '>', 10],
+          ['field3', '=', 15],
+          ['field4', '>', 42],
+          ['field5', '=', 'something']
+        ]),
+        [
+          ['field', '=', 42],
+          'and',
+          ['field2', '>', 10],
+          'and',
+          ['field3', '=', 15],
+          'and',
+          ['field4', '>', 42],
+          'and',
+          ['field5', '=', 'something']
+        ]
+      );
+    });
+
+    test('fix incomplete long "and" chain with one "and"', function() {
+      assert.deepEqual(
+        fixAndChainWithIncompleteAnds([
+          ['field', '=', 42],
+          'and',
+          ['field2', '>', 10],
+          ['field3', '=', 15],
+          ['field4', '>', 42],
+          ['field5', '=', 'something']
+        ]),
+        [
+          ['field', '=', 42],
+          'and',
+          ['field2', '>', 10],
+          'and',
+          ['field3', '=', 15],
+          'and',
+          ['field4', '>', 42],
+          'and',
+          ['field5', '=', 'something']
+        ]
+      );
+    });
+
+    test('fix incomplete long "and" chain with some "ands"', function() {
+      assert.deepEqual(
+        fixAndChainWithIncompleteAnds([
+          ['field', '=', 42],
+          'and',
+          ['field2', '>', 10],
+          ['field3', '=', 15],
+          'and',
+          ['field4', '>', 42],
+          ['field5', '=', 'something']
+        ]),
+        [
+          ['field', '=', 42],
+          'and',
+          ['field2', '>', 10],
+          'and',
+          ['field3', '=', 15],
+          'and',
+          ['field4', '>', 42],
+          'and',
+          ['field5', '=', 'something']
+        ]
+      );
     });
   });
 });
