@@ -36,8 +36,8 @@ function fixFilterAndSearch(schema) {
       typeof se === 'string'
         ? schema[se]
         : Array.isArray(se)
-          ? se.find(e => (schema[e] ? e : null))
-          : null;
+        ? se.find(e => (schema[e] ? e : null))
+        : null;
     return fieldName ? fixValue(schema[fieldName], sv) : sv;
   }
 
@@ -233,7 +233,9 @@ function sortOptions(qry) {
           sort: sortOptions
         };
       else
-        throw `Sort parameter validation errors: ${JSON.stringify(vr.errors)}`;
+        throw new Error(
+          `Sort parameter validation errors: ${JSON.stringify(vr.errors)}`
+        );
     } else return null;
   });
 }
@@ -273,17 +275,19 @@ function groupOptions(qry) {
                         groupSummary: gsOptions
                       };
                     else
-                      throw `Group summary parameter validation errors: ${JSON.stringify(
-                        vr.errors
-                      )}`;
+                      throw new Error(
+                        `Group summary parameter validation errors: ${JSON.stringify(
+                          vr.errors
+                        )}`
+                      );
                   } else return {}; // ignore empty array
                 } else return null;
               })
             ]);
           else
-            throw `Group parameter validation errors: ${JSON.stringify(
-              vr.errors
-            )}`;
+            throw new Error(
+              `Group parameter validation errors: ${JSON.stringify(vr.errors)}`
+            );
         } else return {}; // ignore empty array
       } else return null;
     },
@@ -304,9 +308,11 @@ function totalSummaryOptions(qry) {
             totalSummary: tsOptions
           };
         else
-          throw `Total summary parameter validation errors: ${JSON.stringify(
-            vr.errors
-          )}`;
+          throw new Error(
+            `Total summary parameter validation errors: ${JSON.stringify(
+              vr.errors
+            )}`
+          );
       } else return {}; // ignore empty array
     } else return null;
   });
@@ -353,9 +359,11 @@ function selectOptions(qry) {
             select: selectOptions
           };
         else
-          throw `Select array parameter has invalid content: ${JSON.stringify(
-            selectOptions
-          )}`;
+          throw new Error(
+            `Select array parameter has invalid content: ${JSON.stringify(
+              selectOptions
+            )}`
+          );
       } else return {}; // ignore empty array
     } else return null;
   });
