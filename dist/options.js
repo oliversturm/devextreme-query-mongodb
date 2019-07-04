@@ -191,7 +191,7 @@ function sortOptions(qry) {
       var vr = validateAll(sortOptions, sortOptionsChecker);
       if (vr.valid) return {
         sort: sortOptions
-      };else throw 'Sort parameter validation errors: ' + JSON.stringify(vr.errors);
+      };else throw new Error('Sort parameter validation errors: ' + JSON.stringify(vr.errors));
     } else return null;
   });
 }
@@ -217,10 +217,10 @@ function groupOptions(qry) {
               var _vr = validateAll(gsOptions, summaryOptionsChecker);
               if (_vr.valid) return {
                 groupSummary: gsOptions
-              };else throw 'Group summary parameter validation errors: ' + JSON.stringify(_vr.errors);
+              };else throw new Error('Group summary parameter validation errors: ' + JSON.stringify(_vr.errors));
             } else return {};
           } else return null;
-        })]);else throw 'Group parameter validation errors: ' + JSON.stringify(vr.errors);
+        })]);else throw new Error('Group parameter validation errors: ' + JSON.stringify(vr.errors));
       } else return {};
     } else return null;
   }, undefined, undefined, function (o) {
@@ -236,7 +236,7 @@ function totalSummaryOptions(qry) {
         var vr = validateAll(tsOptions, summaryOptionsChecker);
         if (vr.valid) return {
           totalSummary: tsOptions
-        };else throw 'Total summary parameter validation errors: ' + JSON.stringify(vr.errors);
+        };else throw new Error('Total summary parameter validation errors: ' + JSON.stringify(vr.errors));
       } else return {};
     } else return null;
   });
@@ -272,7 +272,7 @@ function selectOptions(qry) {
           return r && typeof v === 'string';
         })) return {
           select: selectOptions
-        };else throw 'Select array parameter has invalid content: ' + JSON.stringify(selectOptions);
+        };else throw new Error('Select array parameter has invalid content: ' + JSON.stringify(selectOptions));
       } else return {};
     } else return null;
   });

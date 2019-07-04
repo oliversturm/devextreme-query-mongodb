@@ -72,6 +72,7 @@ function createContext(contextOptions, loadOptions) {
   ) =>
     collection
       .aggregate([
+        ...contextOptions.preProcessingPipeline,
         // sort pipeline first, apparently that enables it to use indexes
         ...sortPipeline,
         ...filterPipelineDetails.pipeline,
@@ -170,6 +171,7 @@ function createContext(contextOptions, loadOptions) {
         );
         return groupData.map(item =>
           getCount(collection, [
+            ...contextOptions.preProcessingPipeline,
             ...filterPipelineDetails.pipeline,
             ...groupKeyPipeline,
 
@@ -196,6 +198,7 @@ function createContext(contextOptions, loadOptions) {
             runSummaryQuery(() =>
               collection
                 .aggregate([
+                  ...contextOptions.preProcessingPipeline,
                   ...filterPipelineDetails.pipeline,
                   ...groupKeyPipeline,
                   ...matchPipeline,
@@ -265,6 +268,7 @@ function createContext(contextOptions, loadOptions) {
 
         return [
           getCount(collection, [
+            ...contextOptions.preProcessingPipeline,
             ...completeFilterPipelineDetails.pipeline,
             ...createGroupingPipeline(
               group.desc,
@@ -287,6 +291,7 @@ function createContext(contextOptions, loadOptions) {
       loadOptions.requireTotalCount || loadOptions.totalSummary
         ? [
             getCount(collection, [
+              ...contextOptions.preProcessingPipeline,
               ...completeFilterPipelineDetails.pipeline,
               ...createCountPipeline()
             ]).then(r => ({ totalCount: r }))
@@ -297,6 +302,7 @@ function createContext(contextOptions, loadOptions) {
       resultObject.totalCount > 0 && loadOptions.totalSummary
         ? collection
             .aggregate([
+              ...contextOptions.preProcessingPipeline,
               ...completeFilterPipelineDetails.pipeline,
               ...createSummaryPipeline(loadOptions.totalSummary)
             ])
@@ -336,6 +342,7 @@ function createContext(contextOptions, loadOptions) {
     const mainQueryResult = () =>
       collection
         .aggregate([
+          ...contextOptions.preProcessingPipeline,
           ...completeFilterPipelineDetails.pipeline,
           ...sortPipeline,
           ...skipTakePipeline,
@@ -351,6 +358,7 @@ function createContext(contextOptions, loadOptions) {
       loadOptions.requireTotalCount || loadOptions.totalSummary
         ? [
             getCount(collection, [
+              ...contextOptions.preProcessingPipeline,
               ...completeFilterPipelineDetails.pipeline,
               ...createCountPipeline()
             ]).then(r => ({ totalCount: r }))
@@ -362,6 +370,7 @@ function createContext(contextOptions, loadOptions) {
       resultObject.totalCount > 0 && loadOptions.totalSummary
         ? collection
             .aggregate([
+              ...contextOptions.preProcessingPipeline,
               ...completeFilterPipelineDetails.pipeline,
               ...createSummaryPipeline(loadOptions.totalSummary)
             ])
@@ -389,7 +398,8 @@ function query(collection, loadOptions = {}, options = {}) {
     summaryQueryLimit: 100,
     // timezone offset for the query, in the form returned by
     // Date.getTimezoneOffset
-    timezoneOffset: 0
+    timezoneOffset: 0,
+    preProcessingPipeline: []
   };
   const contextOptions = Object.assign(standardContextOptions, options);
   const context = createContext(contextOptions, loadOptions);

@@ -82,7 +82,7 @@ function createContext(contextOptions, loadOptions) {
   };
 
   var queryGroupData = function queryGroupData(collection, desc, includeDataItems, countSeparately, itemProjection, groupKeyPipeline, sortPipeline, filterPipelineDetails, skipTakePipeline, matchPipeline) {
-    return collection.aggregate([].concat(_toConsumableArray(sortPipeline), _toConsumableArray(filterPipelineDetails.pipeline), _toConsumableArray(matchPipeline), _toConsumableArray(createRemoveNestedFieldsPipeline(filterPipelineDetails.nestedFields)), _toConsumableArray(createGroupingPipeline(desc, includeDataItems, countSeparately, groupKeyPipeline, itemProjection)), _toConsumableArray(skipTakePipeline))).toArray().then(function (r) {
+    return collection.aggregate([].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(sortPipeline), _toConsumableArray(filterPipelineDetails.pipeline), _toConsumableArray(matchPipeline), _toConsumableArray(createRemoveNestedFieldsPipeline(filterPipelineDetails.nestedFields)), _toConsumableArray(createGroupingPipeline(desc, includeDataItems, countSeparately, groupKeyPipeline, itemProjection)), _toConsumableArray(skipTakePipeline))).toArray().then(function (r) {
       return includeDataItems ? r.map(function (i) {
         return _extends({}, i, { items: i.items.map(replaceId) });
       }) : r;
@@ -120,7 +120,7 @@ function createContext(contextOptions, loadOptions) {
         var nextGroup = loadOptions.group[groupIndex + 1];
         var nextGroupKeyPipeline = createGroupKeyPipeline(nextGroup.selector, nextGroup.groupInterval, groupIndex + 1, contextOptions.timezoneOffset);
         return groupData.map(function (item) {
-          return getCount(collection, [].concat(_toConsumableArray(filterPipelineDetails.pipeline), _toConsumableArray(groupKeyPipeline), _toConsumableArray(matchPipeline), _toConsumableArray(createMatchPipeline(createGroupFieldName(groupIndex), item.key)), _toConsumableArray(createGroupingPipeline(nextGroup.desc, false, true, nextGroupKeyPipeline)), _toConsumableArray(createCountPipeline()))).then(function (r) {
+          return getCount(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(filterPipelineDetails.pipeline), _toConsumableArray(groupKeyPipeline), _toConsumableArray(matchPipeline), _toConsumableArray(createMatchPipeline(createGroupFieldName(groupIndex), item.key)), _toConsumableArray(createGroupingPipeline(nextGroup.desc, false, true, nextGroupKeyPipeline)), _toConsumableArray(createCountPipeline()))).then(function (r) {
             item.count = r;
             return r;
           });
@@ -131,7 +131,7 @@ function createContext(contextOptions, loadOptions) {
     var augmentWithSummaries = function augmentWithSummaries(groupData) {
       return summariesRequired ? groupData.map(function (item) {
         return runSummaryQuery(function () {
-          return collection.aggregate([].concat(_toConsumableArray(filterPipelineDetails.pipeline), _toConsumableArray(groupKeyPipeline), _toConsumableArray(matchPipeline), _toConsumableArray(createMatchPipeline(createGroupFieldName(groupIndex), item.key)), _toConsumableArray(summaryPipeline))).toArray();
+          return collection.aggregate([].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(filterPipelineDetails.pipeline), _toConsumableArray(groupKeyPipeline), _toConsumableArray(matchPipeline), _toConsumableArray(createMatchPipeline(createGroupFieldName(groupIndex), item.key)), _toConsumableArray(summaryPipeline))).toArray();
         }).then(function (r) {
           return populateSummaryResults(item, loadOptions.groupSummary, r[0]);
         });
@@ -160,20 +160,20 @@ function createContext(contextOptions, loadOptions) {
       if (loadOptions.requireGroupCount) {
         var group = loadOptions.group[0];
 
-        return [getCount(collection, [].concat(_toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createGroupingPipeline(group.desc, false, true, createGroupKeyPipeline(group.selector, group.groupInterval, 0, contextOptions.timezoneOffset))), _toConsumableArray(createCountPipeline()))).then(function (r) {
+        return [getCount(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createGroupingPipeline(group.desc, false, true, createGroupKeyPipeline(group.selector, group.groupInterval, 0, contextOptions.timezoneOffset))), _toConsumableArray(createCountPipeline()))).then(function (r) {
           return { groupCount: r };
         })];
       } else return [];
     };
 
     var totalCount = function totalCount() {
-      return loadOptions.requireTotalCount || loadOptions.totalSummary ? [getCount(collection, [].concat(_toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createCountPipeline()))).then(function (r) {
+      return loadOptions.requireTotalCount || loadOptions.totalSummary ? [getCount(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createCountPipeline()))).then(function (r) {
         return { totalCount: r };
       })] : [];
     };
 
     var summary = function summary(resultObject) {
-      return resultObject.totalCount > 0 && loadOptions.totalSummary ? collection.aggregate([].concat(_toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createSummaryPipeline(loadOptions.totalSummary)))).toArray().then(function (r) {
+      return resultObject.totalCount > 0 && loadOptions.totalSummary ? collection.aggregate([].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createSummaryPipeline(loadOptions.totalSummary)))).toArray().then(function (r) {
         return populateSummaryResults(resultObject, loadOptions.totalSummary, r[0]);
       }) : Promise.resolve(resultObject);
     };
@@ -189,7 +189,7 @@ function createContext(contextOptions, loadOptions) {
     var removeNestedFieldsPipeline = createRemoveNestedFieldsPipeline(completeFilterPipelineDetails.nestedFields);
 
     var mainQueryResult = function mainQueryResult() {
-      return collection.aggregate([].concat(_toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(sortPipeline), _toConsumableArray(skipTakePipeline), _toConsumableArray(selectPipeline), _toConsumableArray(removeNestedFieldsPipeline))).toArray().then(function (r) {
+      return collection.aggregate([].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(sortPipeline), _toConsumableArray(skipTakePipeline), _toConsumableArray(selectPipeline), _toConsumableArray(removeNestedFieldsPipeline))).toArray().then(function (r) {
         return r.map(replaceId);
       }).then(function (r) {
         return { data: r };
@@ -197,13 +197,13 @@ function createContext(contextOptions, loadOptions) {
     };
 
     var totalCount = function totalCount() {
-      return loadOptions.requireTotalCount || loadOptions.totalSummary ? [getCount(collection, [].concat(_toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createCountPipeline()))).then(function (r) {
+      return loadOptions.requireTotalCount || loadOptions.totalSummary ? [getCount(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createCountPipeline()))).then(function (r) {
         return { totalCount: r };
       })] : [];
     };
 
     var summary = function summary(resultObject) {
-      return resultObject.totalCount > 0 && loadOptions.totalSummary ? collection.aggregate([].concat(_toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createSummaryPipeline(loadOptions.totalSummary)))).toArray().then(function (r) {
+      return resultObject.totalCount > 0 && loadOptions.totalSummary ? collection.aggregate([].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createSummaryPipeline(loadOptions.totalSummary)))).toArray().then(function (r) {
         return populateSummaryResults(resultObject, loadOptions.totalSummary, r[0]);
       }) : Promise.resolve(resultObject);
     };
@@ -222,12 +222,13 @@ function query(collection) {
     replaceIds: true,
     summaryQueryLimit: 100,
 
-    timezoneOffset: 0
+    timezoneOffset: 0,
+    preProcessingPipeline: []
   };
   var contextOptions = Object.assign(standardContextOptions, options);
   var context = createContext(contextOptions, loadOptions);
 
-  return loadOptions.group && loadOptions.group.length > 0 ? context.queryGroups(collection, loadOptions) : context.querySimple(collection, loadOptions);
+  return loadOptions.group && loadOptions.group.length > 0 ? context.queryGroups(collection) : context.querySimple(collection);
 }
 
 module.exports = query;
