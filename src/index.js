@@ -87,11 +87,10 @@ function createContext(contextOptions, loadOptions) {
         ...skipTakePipeline
       ])
       .toArray()
-      .then(
-        r =>
-          includeDataItems
-            ? r.map(i => ({ ...i, items: i.items.map(replaceId) }))
-            : r
+      .then(r =>
+        includeDataItems
+          ? r.map(i => ({ ...i, items: i.items.map(replaceId) }))
+          : r
       );
 
   const queryGroup = (
@@ -396,8 +395,8 @@ function query(collection, loadOptions = {}, options = {}) {
   const context = createContext(contextOptions, loadOptions);
 
   return loadOptions.group && loadOptions.group.length > 0
-    ? context.queryGroups(collection, loadOptions)
-    : context.querySimple(collection, loadOptions);
+    ? context.queryGroups(collection)
+    : context.querySimple(collection);
 }
 
 module.exports = query;
