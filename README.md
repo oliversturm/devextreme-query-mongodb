@@ -1,7 +1,7 @@
 
 ## Querying a MongoDB collection using DevExtreme data store load parameters
 
-The JavaScript library [DevExtreme](https://js.devexpress.com/) by [DevExpress](https://www.devexpress.com) includes a highly advanced [data layer](https://js.devexpress.com/Documentation/17_1/Guide/Data_Layer/Data_Layer/). Many of the complex data-bound UI widgets in the library utilize the data layer infrastructure to load server-provided data efficiently.
+The JavaScript library [DevExtreme](https://js.devexpress.com/) by [DevExpress](https://www.devexpress.com) includes a highly advanced [data layer](https://js.devexpress.com/Documentation/Guide/Data_Layer/Data_Layer/). Many of the complex data-bound UI widgets in the library utilize the data layer infrastructure to load server-provided data efficiently.
 
 When data is loaded by a data source attached to a UI widget (or by code interaction with the data source), the underlying data store receives a call to its `load` function, and a parameter object is passed that I will refer to as `loadOptions`. If you implement a custom store to load data from your own server through a service interface, the server will (or should!) receive the `loadOptions` and query data accordingly.
 
