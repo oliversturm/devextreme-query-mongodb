@@ -1,4 +1,5 @@
 const createGroupFieldName = groupIndex => '___group_key_' + groupIndex;
+const { ObjectId } = require('mongodb');
 
 // much more complicated than it should be because braindead mongo
 // doesn't support integer division by itself
@@ -231,6 +232,10 @@ const construct = (fieldName, operator, compValue) => ({
   [fieldName]: { [operator]: compValue }
 });
 
+const constructObjectId = (fieldName, operator, compValue) => ({
+    [fieldName]: { [operator]: ObjectId(compValue) }
+});
+
 const constructRegex = (fieldName, regex) => ({
   [fieldName]: { $regex: regex, $options: '' }
 });
@@ -390,7 +395,11 @@ const parseFilter = element => {
               case '=':
                 return rval(construct(fieldName, '$eq', element[2]), [
                   element[0]
-                ]);
+                    ]);
+                case '=objectid':
+                    return rval(constructObjectId(fieldName, '$eq', element[2]), [
+                        element[0]
+                    ]);
               case '<>':
                 return rval(construct(fieldName, '$ne', element[2]), [
                   element[0]

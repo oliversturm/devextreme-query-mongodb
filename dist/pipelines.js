@@ -10,6 +10,9 @@ var createGroupFieldName = function createGroupFieldName(groupIndex) {
   return '___group_key_' + groupIndex;
 };
 
+var _require = require('mongodb'),
+    ObjectId = _require.ObjectId;
+
 var divInt = function divInt(dividend, divisor) {
   return {
     $divide: [subtractMod(dividend, divisor), divisor]
@@ -183,6 +186,10 @@ var createMatchPipeline = function createMatchPipeline(selector, value) {
 
 var construct = function construct(fieldName, operator, compValue) {
   return _defineProperty({}, fieldName, _defineProperty({}, operator, compValue));
+};
+
+var constructObjectId = function constructObjectId(fieldName, operator, compValue) {
+  return _defineProperty({}, fieldName, _defineProperty({}, operator, ObjectId(compValue)));
 };
 
 var constructRegex = function constructRegex(fieldName, regex) {
@@ -387,29 +394,31 @@ var parseFilter = function parseFilter(element) {
         } else {
           if (element.length === 3) {
             var _nf = checkNestedField(element[0]);
-            var _fieldName2 = _nf ? _nf.filterFieldName : element[0];
+            var _fieldName3 = _nf ? _nf.filterFieldName : element[0];
 
             switch (operator) {
               case '=':
-                return rval(construct(_fieldName2, '$eq', element[2]), [element[0]]);
+                return rval(construct(_fieldName3, '$eq', element[2]), [element[0]]);
+              case '=objectid':
+                return rval(constructObjectId(_fieldName3, '$eq', element[2]), [element[0]]);
               case '<>':
-                return rval(construct(_fieldName2, '$ne', element[2]), [element[0]]);
+                return rval(construct(_fieldName3, '$ne', element[2]), [element[0]]);
               case '>':
-                return rval(construct(_fieldName2, '$gt', element[2]), [element[0]]);
+                return rval(construct(_fieldName3, '$gt', element[2]), [element[0]]);
               case '>=':
-                return rval(construct(_fieldName2, '$gte', element[2]), [element[0]]);
+                return rval(construct(_fieldName3, '$gte', element[2]), [element[0]]);
               case '<':
-                return rval(construct(_fieldName2, '$lt', element[2]), [element[0]]);
+                return rval(construct(_fieldName3, '$lt', element[2]), [element[0]]);
               case '<=':
-                return rval(construct(_fieldName2, '$lte', element[2]), [element[0]]);
+                return rval(construct(_fieldName3, '$lte', element[2]), [element[0]]);
               case 'startswith':
-                return rval(constructRegex(_fieldName2, '^' + element[2]), [element[0]]);
+                return rval(constructRegex(_fieldName3, '^' + element[2]), [element[0]]);
               case 'endswith':
-                return rval(constructRegex(_fieldName2, element[2] + '$'), [element[0]]);
+                return rval(constructRegex(_fieldName3, element[2] + '$'), [element[0]]);
               case 'contains':
-                return rval(constructRegex(_fieldName2, element[2]), [element[0]]);
+                return rval(constructRegex(_fieldName3, element[2]), [element[0]]);
               case 'notcontains':
-                return rval(constructRegex(_fieldName2, '^((?!' + element[2] + ').)*$'), [element[0]]);
+                return rval(constructRegex(_fieldName3, '^((?!' + element[2] + ').)*$'), [element[0]]);
               default:
                 return null;
             }
