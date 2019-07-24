@@ -1,6 +1,6 @@
 {
   "name": "devextreme-query-mongodb",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "description": "Querying a MongoDB collection using DevExtreme data store load parameters",
   "main": "index.js",
   "files": [
