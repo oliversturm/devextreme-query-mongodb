@@ -5,6 +5,9 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 var chai = require('chai');
 var assert = chai.assert;
 
+var _require = require('mongodb'),
+    ObjectId = _require.ObjectId;
+
 var pipelines = require('./pipelines');
 var createGroupKeyPipeline = pipelines.createGroupKeyPipeline,
     createGroupingPipeline = pipelines.createGroupingPipeline,
@@ -319,6 +322,14 @@ suite('pipelines', function () {
     test('equal', function () {
       testParseFilter(['thing', '=', 'val'], {
         thing: { $eq: 'val' }
+      }, ['thing']);
+    });
+
+    test('equalsObjectId', function () {
+      testParseFilter(['thing', 'equalsObjectId', '0123456789abcdef01234567'], {
+        thing: {
+          $eq: ObjectId('0123456789abcdef01234567')
+        }
       }, ['thing']);
     });
 

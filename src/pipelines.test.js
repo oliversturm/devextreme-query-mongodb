@@ -3,6 +3,8 @@
 const chai = require('chai');
 const assert = chai.assert;
 
+const { ObjectId } = require('mongodb');
+
 const pipelines = require('./pipelines');
 const {
   createGroupKeyPipeline,
@@ -420,6 +422,18 @@ suite('pipelines', function() {
         ['thing', '=', 'val'],
         {
           thing: { $eq: 'val' }
+        },
+        ['thing']
+      );
+    });
+
+    test('equalsObjectId', function() {
+      testParseFilter(
+        ['thing', 'equalsObjectId', '0123456789abcdef01234567'],
+        {
+          thing: {
+            $eq: ObjectId('0123456789abcdef01234567')
+          }
         },
         ['thing']
       );

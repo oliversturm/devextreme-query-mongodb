@@ -6,6 +6,9 @@ var _marked = regeneratorRuntime.mark(_fixAndChainWithIncompleteAnds);
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
+var _require = require('mongodb'),
+    ObjectId = _require.ObjectId;
+
 var createGroupFieldName = function createGroupFieldName(groupIndex) {
   return '___group_key_' + groupIndex;
 };
@@ -410,6 +413,8 @@ var parseFilter = function parseFilter(element) {
                 return rval(constructRegex(_fieldName2, element[2]), [element[0]]);
               case 'notcontains':
                 return rval(constructRegex(_fieldName2, '^((?!' + element[2] + ').)*$'), [element[0]]);
+              case 'equalsobjectid':
+                return rval(construct(_fieldName2, '$eq', ObjectId(element[2])), [element[0]]);
               default:
                 return null;
             }

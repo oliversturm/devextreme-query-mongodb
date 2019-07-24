@@ -3,17 +3,16 @@
 
 const chai = require('chai');
 const expect = chai.expect;
-const MongoClient = require('mongodb').MongoClient;
+const { MongoClient, ObjectId } = require('mongodb');
 
 const query = require('.');
 
 const TESTRECORD_COUNT = 100;
 
 const initClient = () =>
-  MongoClient.connect(
-    'mongodb://localhost:27017/dxtqutests',
-    { useNewUrlParser: true }
-  );
+  MongoClient.connect('mongodb://localhost:27017/dxtqutests', {
+    useNewUrlParser: true
+  });
 
 function testQueryValues(
   tdone,
@@ -1934,6 +1933,42 @@ suite('query-values', function() {
               string: 'something'
             })
           ];
+        }
+      );
+    });
+
+    test('equalsObjectId operator with ObjectId value', function(tdone) {
+      // this query also works with the standard '=' operator
+      const testId = ObjectId('0123456789abcdef01234567');
+      testQueryValues(
+        tdone,
+        {
+          filter: ['idField', 'equalsObjectId', testId],
+          requireTotalCount: true
+        },
+        function(res) {
+          expect(res.totalCount, 'totalCount').to.eql(1);
+        },
+        function(collection) {
+          return [collection.insertOne({ idField: testId })];
+        }
+      );
+    });
+
+    test('equalsObjectId operator with string value', function(tdone) {
+      // this query works only with the equalsObjectId operator
+      const testId = ObjectId('0123456789abcdef01234567');
+      testQueryValues(
+        tdone,
+        {
+          filter: ['idField', 'equalsObjectId', testId.toString()],
+          requireTotalCount: true
+        },
+        function(res) {
+          expect(res.totalCount, 'totalCount').to.eql(1);
+        },
+        function(collection) {
+          return [collection.insertOne({ idField: testId })];
         }
       );
     });

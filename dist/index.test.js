@@ -2,14 +2,19 @@
 
 var chai = require('chai');
 var expect = chai.expect;
-var MongoClient = require('mongodb').MongoClient;
+
+var _require = require('mongodb'),
+    MongoClient = _require.MongoClient,
+    ObjectId = _require.ObjectId;
 
 var query = require('.');
 
 var TESTRECORD_COUNT = 100;
 
 var initClient = function initClient() {
-  return MongoClient.connect('mongodb://localhost:27017/dxtqutests', { useNewUrlParser: true });
+  return MongoClient.connect('mongodb://localhost:27017/dxtqutests', {
+    useNewUrlParser: true
+  });
 };
 
 function testQueryValues(tdone, loadOptions, test, getTestDataPromises, contextOptions) {
@@ -1717,6 +1722,30 @@ suite('query-values', function () {
           int2: 10,
           string: 'something'
         })];
+      });
+    });
+
+    test('equalsObjectId operator with ObjectId value', function (tdone) {
+      var testId = ObjectId('0123456789abcdef01234567');
+      testQueryValues(tdone, {
+        filter: ['idField', 'equalsObjectId', testId],
+        requireTotalCount: true
+      }, function (res) {
+        expect(res.totalCount, 'totalCount').to.eql(1);
+      }, function (collection) {
+        return [collection.insertOne({ idField: testId })];
+      });
+    });
+
+    test('equalsObjectId operator with string value', function (tdone) {
+      var testId = ObjectId('0123456789abcdef01234567');
+      testQueryValues(tdone, {
+        filter: ['idField', 'equalsObjectId', testId.toString()],
+        requireTotalCount: true
+      }, function (res) {
+        expect(res.totalCount, 'totalCount').to.eql(1);
+      }, function (collection) {
+        return [collection.insertOne({ idField: testId })];
       });
     });
   });

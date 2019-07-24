@@ -1,3 +1,5 @@
+const { ObjectId } = require('mongodb');
+
 const createGroupFieldName = groupIndex => '___group_key_' + groupIndex;
 
 // much more complicated than it should be because braindead mongo
@@ -428,6 +430,10 @@ const parseFilter = element => {
                   constructRegex(fieldName, '^((?!' + element[2] + ').)*$'),
                   [element[0]]
                 );
+              case 'equalsobjectid':
+                return rval(construct(fieldName, '$eq', ObjectId(element[2])), [
+                  element[0]
+                ]);
               default:
                 return null;
             }
