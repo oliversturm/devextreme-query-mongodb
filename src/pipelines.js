@@ -233,8 +233,8 @@ const construct = (fieldName, operator, compValue) => ({
   [fieldName]: { [operator]: compValue }
 });
 
-const constructRegex = (fieldName, regex) => ({
-  [fieldName]: { $regex: regex, $options: '' }
+const constructRegex = (fieldName, regex, options = '') => ({
+  [fieldName]: { $regex: regex, $options: options }
 });
 
 const isCorrectFilterOperatorStructure = (element, operator) =>
@@ -297,7 +297,7 @@ const fixAndChainWithIncompleteAnds = element =>
   Array.from(_fixAndChainWithIncompleteAnds(element));
 
 // eslint-disable-next-line complexity
-const parseFilter = element => {
+const parseFilter = (element, regexOptions) => {
   // Element can be a string denoting a field name - I don't know if that's a case
   // supported by the widgets in any way, but it seems conceivable that somebody constructs
   // an expression like [ "!", "boolValueField" ]
@@ -336,11 +336,11 @@ const parseFilter = element => {
       // assuming a nested array in this case:
       // the pivot grid sometimes does this
       // [ [ "field", "=", 5 ] ]
-      return parseFilter(element[0]);
+      return parseFilter(element[0], regexOptions);
     } else if (element.length === 2) {
       // unary operator - only one supported
       if (element[0] === '!') {
-        const { match, fieldList } = parseFilter(element[1]);
+        const { match, fieldList } = parseFilter(element[1], regexOptions);
         if (match)
           return rval(
             {
@@ -350,11 +350,11 @@ const parseFilter = element => {
           );
         else return null;
       } else if (isAndChainWithIncompleteAnds(element))
-        return parseFilter(fixAndChainWithIncompleteAnds(element));
+        return parseFilter(fixAndChainWithIncompleteAnds(element), regexOptions);
       else return null;
     } else {
       if (isAndChainWithIncompleteAnds(element))
-        return parseFilter(fixAndChainWithIncompleteAnds(element));
+        return parseFilter(fixAndChainWithIncompleteAnds(element), regexOptions);
       else if (element.length % 2 === 1) {
         // odd number of elements - let's see what the operator is
         const operator = String(element[1]).toLowerCase();
@@ -367,7 +367,7 @@ const parseFilter = element => {
               (r, v) => {
                 if (r.previous) return { ...r, previous: false };
                 else {
-                  const nestedResult = parseFilter(v);
+                  const nestedResult = parseFilter(v, regexOptions);
                   const nestedFilter = nestedResult && nestedResult.match;
                   const fieldList = nestedResult ? nestedResult.fieldList : [];
                   if (nestedFilter) r.list.push(nestedFilter);
@@ -414,20 +414,20 @@ const parseFilter = element => {
                   element[0]
                 ]);
               case 'startswith':
-                return rval(constructRegex(fieldName, '^' + element[2]), [
+                return rval(constructRegex(fieldName, '^' + element[2], regexOptions), [
                   element[0]
                 ]);
               case 'endswith':
-                return rval(constructRegex(fieldName, element[2] + '$'), [
+                return rval(constructRegex(fieldName, element[2] + '$', regexOptions), [
                   element[0]
                 ]);
               case 'contains':
-                return rval(constructRegex(fieldName, element[2]), [
+                return rval(constructRegex(fieldName, element[2], regexOptions), [
                   element[0]
                 ]);
               case 'notcontains':
                 return rval(
-                  constructRegex(fieldName, '^((?!' + element[2] + ').)*$'),
+                  constructRegex(fieldName, '^((?!' + element[2] + ').)*$', regexOptions),
                   [element[0]]
                 );
               case 'equalsobjectid':
@@ -444,14 +444,14 @@ const parseFilter = element => {
   } else return null;
 };
 
-const createFilterPipeline = filter => {
+const createFilterPipeline = (filter, regexOptions) => {
   const dummy = {
     pipeline: [],
     fieldList: []
   };
 
   if (filter) {
-    const result = parseFilter(filter);
+    const result = parseFilter(filter, regexOptions);
     const match = result && result.match;
     const fieldList = result ? result.fieldList : [];
     if (match)
@@ -508,7 +508,7 @@ const createSummaryPipeline = summary => {
   } else return [];
 };
 
-const createSearchPipeline = (expr, op, val) => {
+const createSearchPipeline = (expr, op, val, regexOptions) => {
   const dummy = {
     pipeline: [],
     fieldList: []
@@ -526,7 +526,7 @@ const createSearchPipeline = (expr, op, val) => {
     }
   } else return dummy;
 
-  return createFilterPipeline(criteria);
+  return createFilterPipeline(criteria, regexOptions);
 };
 
 const createSelectProjectExpression = (fields, explicitId = false) => {
@@ -661,17 +661,19 @@ const createCompleteFilterPipeline = (
   searchOperation,
   searchValue,
   filter,
-  timezoneOffset = 0
+  timezoneOffset = 0,
+  regexOptions = '',
 ) => {
   // this pipeline has the search options, the function also returns
   // a list of fields that are being accessed
   const searchPipeline = createSearchPipeline(
     searchExpr,
     searchOperation,
-    searchValue
+    searchValue,
+    regexOptions,
   );
   // and the same for the filter option
-  const filterPipeline = createFilterPipeline(filter);
+  const filterPipeline = createFilterPipeline(filter, regexOptions);
 
   // this pipeline adds fields in case there are nested elements:
   // dateField.Month

@@ -244,7 +244,8 @@ function createContext(contextOptions, loadOptions) {
       loadOptions.searchOperation,
       loadOptions.searchValue,
       loadOptions.filter,
-      contextOptions.timezoneOffset
+      contextOptions.timezoneOffset,
+      contextOptions.regexOptions,
     );
     const summaryPipeline = createSummaryPipeline(loadOptions.groupSummary);
     const skipTakePipeline = createSkipTakePipeline(
@@ -327,7 +328,8 @@ function createContext(contextOptions, loadOptions) {
       loadOptions.searchOperation,
       loadOptions.searchValue,
       loadOptions.filter,
-      contextOptions.timezoneOffset
+      contextOptions.timezoneOffset,
+      contextOptions.regexOptions,
     );
     const sortPipeline = createSortPipeline(loadOptions.sort);
     const skipTakePipeline = createSkipTakePipeline(
@@ -399,7 +401,8 @@ function query(collection, loadOptions = {}, options = {}) {
     // timezone offset for the query, in the form returned by
     // Date.getTimezoneOffset
     timezoneOffset: 0,
-    preProcessingPipeline: []
+    preProcessingPipeline: [],
+    regexOptions: '',
   };
   const contextOptions = Object.assign(standardContextOptions, options);
   const context = createContext(contextOptions, loadOptions);

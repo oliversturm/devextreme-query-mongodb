@@ -146,7 +146,7 @@ function createContext(contextOptions, loadOptions) {
   };
 
   var queryGroups = function queryGroups(collection) {
-    var completeFilterPipelineDetails = createCompleteFilterPipeline(loadOptions.searchExpr, loadOptions.searchOperation, loadOptions.searchValue, loadOptions.filter, contextOptions.timezoneOffset);
+    var completeFilterPipelineDetails = createCompleteFilterPipeline(loadOptions.searchExpr, loadOptions.searchOperation, loadOptions.searchValue, loadOptions.filter, contextOptions.timezoneOffset, contextOptions.regexOptions);
     var summaryPipeline = createSummaryPipeline(loadOptions.groupSummary);
     var skipTakePipeline = createSkipTakePipeline(loadOptions.skip, loadOptions.take);
 
@@ -182,7 +182,7 @@ function createContext(contextOptions, loadOptions) {
   };
 
   var querySimple = function querySimple(collection) {
-    var completeFilterPipelineDetails = createCompleteFilterPipeline(loadOptions.searchExpr, loadOptions.searchOperation, loadOptions.searchValue, loadOptions.filter, contextOptions.timezoneOffset);
+    var completeFilterPipelineDetails = createCompleteFilterPipeline(loadOptions.searchExpr, loadOptions.searchOperation, loadOptions.searchValue, loadOptions.filter, contextOptions.timezoneOffset, contextOptions.regexOptions);
     var sortPipeline = createSortPipeline(loadOptions.sort);
     var skipTakePipeline = createSkipTakePipeline(loadOptions.skip, loadOptions.take);
     var selectPipeline = createSelectPipeline(loadOptions.select);
@@ -223,7 +223,8 @@ function query(collection) {
     summaryQueryLimit: 100,
 
     timezoneOffset: 0,
-    preProcessingPipeline: []
+    preProcessingPipeline: [],
+    regexOptions: ''
   };
   var contextOptions = Object.assign(standardContextOptions, options);
   var context = createContext(contextOptions, loadOptions);
