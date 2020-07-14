@@ -413,6 +413,10 @@ const parseFilter = element => {
                 return rval(construct(fieldName, '$lte', element[2]), [
                   element[0]
                 ]);
+              case 'in':
+                return rval(construct(fieldName, '$in', element[2]), [
+                  element[0]
+                ]);
               case 'startswith':
                 return rval(constructRegex(fieldName, '^' + element[2]), [
                   element[0]
