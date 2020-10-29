@@ -1,34 +1,36 @@
 const { ObjectId } = require('mongodb');
 
-const createGroupFieldName = groupIndex => '___group_key_' + groupIndex;
+const createGroupFieldName = (groupIndex) => '___group_key_' + groupIndex;
 
 // much more complicated than it should be because braindead mongo
 // doesn't support integer division by itself
 // so I'm doing (dividend - (dividend MOD divisor)) / divisor
 const divInt = (dividend, divisor) => ({
-  $divide: [subtractMod(dividend, divisor), divisor]
+  $divide: [subtractMod(dividend, divisor), divisor],
 });
 
 const subtractMod = (a, b) => ({
   $subtract: [
     a,
     {
-      $mod: [a, b]
-    }
-  ]
+      $mod: [a, b],
+    },
+  ],
 });
 
 const createGroupKeyPipeline = (
   selector,
   groupInterval,
   groupIndex,
-  timezoneOffset = 0
+  contextOptions
 ) => {
-  const wrapGroupKey = keyExpr => ({
-    $addFields: { [createGroupFieldName(groupIndex)]: keyExpr }
+  const { timezoneOffset } = contextOptions;
+
+  const wrapGroupKey = (keyExpr) => ({
+    $addFields: { [createGroupFieldName(groupIndex)]: keyExpr },
   });
 
-  const prefix = s => '$' + s;
+  const prefix = (s) => '$' + s;
 
   const pipe = (...args) => {
     let result = Array.from(args);
@@ -43,14 +45,14 @@ const createGroupKeyPipeline = (
     } else {
       // timezone adjusted field
       const tafield = {
-        $subtract: [prefix(selector), timezoneOffset * 60 * 1000]
+        $subtract: [prefix(selector), timezoneOffset * 60 * 1000],
       };
 
       switch (groupInterval) {
         case 'year':
           return pipe(
             wrapGroupKey({
-              $year: tafield
+              $year: tafield,
             })
           );
         case 'quarter':
@@ -63,25 +65,25 @@ const createGroupKeyPipeline = (
                 ___mp2: {
                   $add: [
                     {
-                      $month: tafield
+                      $month: tafield,
                     },
-                    2
-                  ]
-                }
-              }
+                    2,
+                  ],
+                },
+              },
             },
             wrapGroupKey(divInt('$___mp2', 3))
           );
         case 'month':
           return pipe(
             wrapGroupKey({
-              $month: tafield
+              $month: tafield,
             })
           );
         case 'day':
           return pipe(
             wrapGroupKey({
-              $dayOfMonth: tafield
+              $dayOfMonth: tafield,
             })
           );
         case 'dayOfWeek':
@@ -89,28 +91,28 @@ const createGroupKeyPipeline = (
             wrapGroupKey({
               $subtract: [
                 {
-                  $dayOfWeek: tafield // correct in that it's sunday to saturday, but it's 1-7 (must be 0-6)
+                  $dayOfWeek: tafield, // correct in that it's sunday to saturday, but it's 1-7 (must be 0-6)
                 },
-                1
-              ]
+                1,
+              ],
             })
           );
         case 'hour':
           return pipe(
             wrapGroupKey({
-              $hour: tafield
+              $hour: tafield,
             })
           );
         case 'minute':
           return pipe(
             wrapGroupKey({
-              $minute: tafield
+              $minute: tafield,
             })
           );
         case 'second':
           return pipe(
             wrapGroupKey({
-              $second: tafield
+              $second: tafield,
             })
           );
         default:
@@ -132,21 +134,21 @@ const createGroupStagePipeline = (
   let result = {
     $group: {
       // must use _id at this point for the group key
-      _id: '$' + createGroupFieldName(groupKeyPipeline.groupIndex)
-    }
+      _id: '$' + createGroupFieldName(groupKeyPipeline.groupIndex),
+    },
   };
   if (!countingSeparately) {
     // this method of counting results in the number of data items in the group
     // if the group has sub-groups, it can't be used
     result.$group.count = {
-      $sum: 1
+      $sum: 1,
     };
   }
   if (includeDataItems) {
     // include items directly if we're expected to do so, and if this is the
     // most deeply nested group in case there are several
     result.$group.items = {
-      $push: itemProjection
+      $push: itemProjection,
     };
   }
 
@@ -164,13 +166,13 @@ const createGroupingPipeline = (
     $project: {
       // rename _id to key
       _id: 0,
-      key: '$_id'
-    }
+      key: '$_id',
+    },
   };
   let sortStage = {
     $sort: {
-      key: desc ? -1 : 1
-    }
+      key: desc ? -1 : 1,
+    },
   };
 
   let pipeline = createGroupStagePipeline(
@@ -194,8 +196,8 @@ const createGroupingPipeline = (
     // add null items field otherwise
     pipeline.push({
       $addFields: {
-        items: null // only null works, not [] or leaving out items altogether
-      }
+        items: null, // only null works, not [] or leaving out items altogether
+      },
     });
   }
 
@@ -207,11 +209,11 @@ const createSkipTakePipeline = (skip, take) => {
 
   if (skip)
     pipeline.push({
-      $skip: skip
+      $skip: skip,
     });
   if (take)
     pipeline.push({
-      $limit: take
+      $limit: take,
     });
 
   return pipeline;
@@ -220,21 +222,21 @@ const createSkipTakePipeline = (skip, take) => {
 const createCountPipeline = () => {
   return [
     {
-      $count: 'count'
-    }
+      $count: 'count',
+    },
   ];
 };
 
 const createMatchPipeline = (selector, value) => [
-  { $match: { [selector]: value } }
+  { $match: { [selector]: value } },
 ];
 
 const construct = (fieldName, operator, compValue) => ({
-  [fieldName]: { [operator]: compValue }
+  [fieldName]: { [operator]: compValue },
 });
 
-const constructRegex = (fieldName, regex) => ({
-  [fieldName]: { $regex: regex, $options: '' }
+const constructRegex = (fieldName, regex, caseInsensitive) => ({
+  [fieldName]: { $regex: regex, $options: caseInsensitive ? 'i' : '' },
 });
 
 const isCorrectFilterOperatorStructure = (element, operator) =>
@@ -244,13 +246,13 @@ const isCorrectFilterOperatorStructure = (element, operator) =>
       else
         return {
           ok: r.ok && typeof v === 'string' && v.toLowerCase() === operator,
-          previous: true
+          previous: true,
         };
     },
     { ok: true, previous: true }
   ).ok;
 
-const isAndChainWithIncompleteAnds = element => {
+const isAndChainWithIncompleteAnds = (element) => {
   if (!Array.isArray(element)) return false;
   if (element.length < 2) return false;
   if (!Array.isArray(element[0])) return false;
@@ -293,11 +295,11 @@ function* _fixAndChainWithIncompleteAnds(chain) {
   }
 }
 
-const fixAndChainWithIncompleteAnds = element =>
+const fixAndChainWithIncompleteAnds = (element) =>
   Array.from(_fixAndChainWithIncompleteAnds(element));
 
 // eslint-disable-next-line complexity
-const parseFilter = element => {
+const parseFilter = (element, contextOptions = {}) => {
   // Element can be a string denoting a field name - I don't know if that's a case
   // supported by the widgets in any way, but it seems conceivable that somebody constructs
   // an expression like [ "!", "boolValueField" ]
@@ -325,6 +327,8 @@ const parseFilter = element => {
   // .... etc
   //
 
+  const { caseInsensitiveRegex } = contextOptions;
+
   const rval = (match, fieldList) => ({ match, fieldList });
 
   if (typeof element === 'string') {
@@ -336,25 +340,31 @@ const parseFilter = element => {
       // assuming a nested array in this case:
       // the pivot grid sometimes does this
       // [ [ "field", "=", 5 ] ]
-      return parseFilter(element[0]);
+      return parseFilter(element[0], contextOptions);
     } else if (element.length === 2) {
       // unary operator - only one supported
       if (element[0] === '!') {
-        const { match, fieldList } = parseFilter(element[1]);
+        const { match, fieldList } = parseFilter(element[1], contextOptions);
         if (match)
           return rval(
             {
-              $nor: [match]
+              $nor: [match],
             },
             fieldList
           );
         else return null;
       } else if (isAndChainWithIncompleteAnds(element))
-        return parseFilter(fixAndChainWithIncompleteAnds(element));
+        return parseFilter(
+          fixAndChainWithIncompleteAnds(element),
+          contextOptions
+        );
       else return null;
     } else {
       if (isAndChainWithIncompleteAnds(element))
-        return parseFilter(fixAndChainWithIncompleteAnds(element));
+        return parseFilter(
+          fixAndChainWithIncompleteAnds(element),
+          contextOptions
+        );
       else if (element.length % 2 === 1) {
         // odd number of elements - let's see what the operator is
         const operator = String(element[1]).toLowerCase();
@@ -367,14 +377,14 @@ const parseFilter = element => {
               (r, v) => {
                 if (r.previous) return { ...r, previous: false };
                 else {
-                  const nestedResult = parseFilter(v);
+                  const nestedResult = parseFilter(v, contextOptions);
                   const nestedFilter = nestedResult && nestedResult.match;
                   const fieldList = nestedResult ? nestedResult.fieldList : [];
                   if (nestedFilter) r.list.push(nestedFilter);
                   return {
                     list: r.list,
                     fieldList: r.fieldList.concat(fieldList),
-                    previous: true
+                    previous: true,
                   };
                 }
               },
@@ -391,48 +401,63 @@ const parseFilter = element => {
             switch (operator) {
               case '=':
                 return rval(construct(fieldName, '$eq', element[2]), [
-                  element[0]
+                  element[0],
                 ]);
               case '<>':
                 return rval(construct(fieldName, '$ne', element[2]), [
-                  element[0]
+                  element[0],
                 ]);
               case '>':
                 return rval(construct(fieldName, '$gt', element[2]), [
-                  element[0]
+                  element[0],
                 ]);
               case '>=':
                 return rval(construct(fieldName, '$gte', element[2]), [
-                  element[0]
+                  element[0],
                 ]);
               case '<':
                 return rval(construct(fieldName, '$lt', element[2]), [
-                  element[0]
+                  element[0],
                 ]);
               case '<=':
                 return rval(construct(fieldName, '$lte', element[2]), [
-                  element[0]
+                  element[0],
                 ]);
               case 'startswith':
-                return rval(constructRegex(fieldName, '^' + element[2]), [
-                  element[0]
-                ]);
+                return rval(
+                  constructRegex(
+                    fieldName,
+                    '^' + element[2],
+                    caseInsensitiveRegex
+                  ),
+                  [element[0]]
+                );
               case 'endswith':
-                return rval(constructRegex(fieldName, element[2] + '$'), [
-                  element[0]
-                ]);
+                return rval(
+                  constructRegex(
+                    fieldName,
+                    element[2] + '$',
+                    caseInsensitiveRegex
+                  ),
+                  [element[0]]
+                );
               case 'contains':
-                return rval(constructRegex(fieldName, element[2]), [
-                  element[0]
-                ]);
+                return rval(
+                  constructRegex(fieldName, element[2], caseInsensitiveRegex),
+                  [element[0]]
+                );
               case 'notcontains':
                 return rval(
-                  constructRegex(fieldName, '^((?!' + element[2] + ').)*$'),
+                  constructRegex(
+                    fieldName,
+                    '^((?!' + element[2] + ').)*$',
+                    caseInsensitiveRegex
+                  ),
                   [element[0]]
                 );
               case 'equalsobjectid':
                 return rval(construct(fieldName, '$eq', ObjectId(element[2])), [
-                  element[0]
+                  element[0],
                 ]);
               default:
                 return null;
@@ -444,42 +469,42 @@ const parseFilter = element => {
   } else return null;
 };
 
-const createFilterPipeline = filter => {
+const createFilterPipeline = (filter, contextOptions) => {
   const dummy = {
     pipeline: [],
-    fieldList: []
+    fieldList: [],
   };
 
   if (filter) {
-    const result = parseFilter(filter);
+    const result = parseFilter(filter, contextOptions);
     const match = result && result.match;
     const fieldList = result ? result.fieldList : [];
     if (match)
       return {
         pipeline: [
           {
-            $match: match
-          }
+            $match: match,
+          },
         ],
-        fieldList: fieldList
+        fieldList: fieldList,
       };
     else return dummy;
   } else return dummy;
 };
 
-const createSortPipeline = sort =>
+const createSortPipeline = (sort) =>
   sort
     ? [
         {
           $sort: sort.reduce(
             (r, v) => ({ ...r, [v.selector]: v.desc ? -1 : 1 }),
             {}
-          )
-        }
+          ),
+        },
       ]
     : [];
 
-const createSummaryPipeline = summary => {
+const createSummaryPipeline = (summary) => {
   if (summary) {
     let gc = { _id: null };
     for (const s of summary) {
@@ -489,7 +514,7 @@ const createSummaryPipeline = summary => {
         case 'min':
         case 'max':
           gc[`___${s.summaryType}${s.selector}`] = {
-            [`$${s.summaryType}`]: `$${s.selector}`
+            [`$${s.summaryType}`]: `$${s.selector}`,
           };
           break;
         case 'count':
@@ -502,16 +527,16 @@ const createSummaryPipeline = summary => {
     }
     return [
       {
-        $group: gc
-      }
+        $group: gc,
+      },
     ];
   } else return [];
 };
 
-const createSearchPipeline = (expr, op, val) => {
+const createSearchPipeline = (expr, op, val, contextOptions) => {
   const dummy = {
     pipeline: [],
-    fieldList: []
+    fieldList: [],
   };
 
   if (!expr || !op || !val) return dummy;
@@ -526,7 +551,7 @@ const createSearchPipeline = (expr, op, val) => {
     }
   } else return dummy;
 
-  return createFilterPipeline(criteria);
+  return createFilterPipeline(criteria, contextOptions);
 };
 
 const createSelectProjectExpression = (fields, explicitId = false) => {
@@ -538,12 +563,12 @@ const createSelectProjectExpression = (fields, explicitId = false) => {
   } else return undefined;
 };
 
-const createSelectPipeline = fields => {
+const createSelectPipeline = (fields, contextOptions) => {
   if (fields && fields.length > 0) {
     return [
       {
-        $project: createSelectProjectExpression(fields)
-      }
+        $project: createSelectProjectExpression(fields, contextOptions),
+      },
     ];
   } else return [];
 };
@@ -553,17 +578,18 @@ const createSelectPipeline = fields => {
 // if so, I need to add the nested fields to the pipeline for filtering
 const nestedFieldRegex = /^([^.]+)\.(year|quarter|month|dayofweek|day)$/i;
 
-const checkNestedField = fieldName => {
+const checkNestedField = (fieldName) => {
   const match = nestedFieldRegex.exec(fieldName);
   if (!match) return undefined;
   return {
     base: match[1],
     nested: match[2],
-    filterFieldName: `___${match[1]}_${match[2]}`
+    filterFieldName: `___${match[1]}_${match[2]}`,
   };
 };
 
-const createAddNestedFieldsPipeline = (fieldNames, timezoneOffset = 0) => {
+const createAddNestedFieldsPipeline = (fieldNames, contextOptions) => {
+  const { timezoneOffset } = contextOptions;
   // constructing a pipeline that potentially has two parts, because the
   // quarter calculation has two steps
   // both parts will be wrapped in { $addFields: PART } after this
@@ -583,13 +609,13 @@ const createAddNestedFieldsPipeline = (fieldNames, timezoneOffset = 0) => {
         ) {
           // timezone adjusted field
           const tafield = {
-            $subtract: ['$' + nf.base, timezoneOffset * 60 * 1000]
+            $subtract: ['$' + nf.base, timezoneOffset * 60 * 1000],
           };
 
           switch (nestedFunction) {
             case 'year':
               r.pipeline[1][nf.filterFieldName] = {
-                $year: tafield
+                $year: tafield,
               };
               r.nestedFields.push(nf.filterFieldName);
               break;
@@ -598,10 +624,10 @@ const createAddNestedFieldsPipeline = (fieldNames, timezoneOffset = 0) => {
               r.pipeline[0][tempField] = {
                 $add: [
                   {
-                    $month: tafield
+                    $month: tafield,
                   },
-                  2
-                ]
+                  2,
+                ],
               };
               r.nestedFields.push(tempField);
               r.pipeline[1][nf.filterFieldName] = divInt('$' + tempField, 3);
@@ -610,13 +636,13 @@ const createAddNestedFieldsPipeline = (fieldNames, timezoneOffset = 0) => {
             }
             case 'month':
               r.pipeline[1][nf.filterFieldName] = {
-                $month: tafield
+                $month: tafield,
               };
               r.nestedFields.push(nf.filterFieldName);
               break;
             case 'day':
               r.pipeline[1][nf.filterFieldName] = {
-                $dayOfMonth: tafield
+                $dayOfMonth: tafield,
               };
               r.nestedFields.push(nf.filterFieldName);
               break;
@@ -624,10 +650,10 @@ const createAddNestedFieldsPipeline = (fieldNames, timezoneOffset = 0) => {
               r.pipeline[1][nf.filterFieldName] = {
                 $subtract: [
                   {
-                    $dayOfWeek: tafield
+                    $dayOfWeek: tafield,
                   },
-                  1
-                ]
+                  1,
+                ],
               };
               r.nestedFields.push(nf.filterFieldName);
               break;
@@ -640,15 +666,15 @@ const createAddNestedFieldsPipeline = (fieldNames, timezoneOffset = 0) => {
     },
     {
       pipeline: [{}, {}],
-      nestedFields: []
+      nestedFields: [],
     }
   );
-  [1, 0].forEach(i => {
+  [1, 0].forEach((i) => {
     if (Object.getOwnPropertyNames(pr.pipeline[i]).length === 0) {
       pr.pipeline.splice(i, 1); // nothing in this part, remove
     } else {
       pr.pipeline[i] = {
-        $addFields: pr.pipeline[i]
+        $addFields: pr.pipeline[i],
       };
     }
   });
@@ -661,23 +687,24 @@ const createCompleteFilterPipeline = (
   searchOperation,
   searchValue,
   filter,
-  timezoneOffset = 0
+  contextOptions
 ) => {
   // this pipeline has the search options, the function also returns
   // a list of fields that are being accessed
   const searchPipeline = createSearchPipeline(
     searchExpr,
     searchOperation,
-    searchValue
+    searchValue,
+    contextOptions
   );
   // and the same for the filter option
-  const filterPipeline = createFilterPipeline(filter);
+  const filterPipeline = createFilterPipeline(filter, contextOptions);
 
   // this pipeline adds fields in case there are nested elements:
   // dateField.Month
   const addNestedFieldsPipelineDetails = createAddNestedFieldsPipeline(
     searchPipeline.fieldList.concat(filterPipeline.fieldList),
-    timezoneOffset
+    contextOptions
   );
 
   return {
@@ -685,19 +712,19 @@ const createCompleteFilterPipeline = (
       searchPipeline.pipeline,
       filterPipeline.pipeline
     ),
-    nestedFields: addNestedFieldsPipelineDetails.nestedFields
+    nestedFields: addNestedFieldsPipelineDetails.nestedFields,
   };
 };
 
-const createRemoveNestedFieldsPipeline = nestedFields => {
+const createRemoveNestedFieldsPipeline = (nestedFields) => {
   if (nestedFields.length === 0) return [];
 
   let pd = {};
   for (const f of nestedFields) pd[f] = 0;
   return [
     {
-      $project: pd
-    }
+      $project: pd,
+    },
   ];
 };
 
@@ -727,6 +754,6 @@ module.exports = {
     createAddNestedFieldsPipeline,
     isAndChainWithIncompleteAnds,
     fixAndChainWithIncompleteAnds,
-    isCorrectFilterOperatorStructure
-  }
+    isCorrectFilterOperatorStructure,
+  },
 };

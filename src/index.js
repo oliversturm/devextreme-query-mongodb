@@ -10,13 +10,13 @@ const {
   createSelectProjectExpression,
   createSelectPipeline,
   createCompleteFilterPipeline,
-  createRemoveNestedFieldsPipeline
+  createRemoveNestedFieldsPipeline,
 } = require('./pipelines');
 const {
   replaceId,
   createSummaryQueryExecutor,
   merge,
-  debug
+  debug,
 } = require('./utils');
 
 function createContext(contextOptions, loadOptions) {
@@ -27,7 +27,7 @@ function createContext(contextOptions, loadOptions) {
       // Strangely, the pipeline returns an empty array when the "match" part
       // filters out all rows - I would expect to still see the "count" stage
       // working, but it doesn't. Ask mongo.
-      .then(r => (r.length > 0 ? r[0].count : 0));
+      .then((r) => (r.length > 0 ? r[0].count : 0));
 
   const populateSummaryResults = (target, summary, summaryResults) => {
     if (summary) {
@@ -77,20 +77,24 @@ function createContext(contextOptions, loadOptions) {
         ...sortPipeline,
         ...filterPipelineDetails.pipeline,
         ...matchPipeline,
-        ...createRemoveNestedFieldsPipeline(filterPipelineDetails.nestedFields),
+        ...createRemoveNestedFieldsPipeline(
+          filterPipelineDetails.nestedFields,
+          contextOptions
+        ),
         ...createGroupingPipeline(
           desc,
           includeDataItems,
           countSeparately,
           groupKeyPipeline,
-          itemProjection
+          itemProjection,
+          contextOptions
         ),
-        ...skipTakePipeline
+        ...skipTakePipeline,
       ])
       .toArray()
-      .then(r =>
+      .then((r) =>
         includeDataItems
-          ? r.map(i => ({ ...i, items: i.items.map(replaceId) }))
+          ? r.map((i) => ({ ...i, items: i.items.map(replaceId) }))
           : r
       );
 
@@ -118,12 +122,12 @@ function createContext(contextOptions, loadOptions) {
       group.selector,
       group.groupInterval,
       groupIndex,
-      contextOptions.timezoneOffset
+      contextOptions
     );
 
-    const augmentWithSubGroups = groupData =>
+    const augmentWithSubGroups = (groupData) =>
       subGroupsRequired
-        ? groupData.map(item =>
+        ? groupData.map((item) =>
             queryGroup(
               collection,
               groupIndex + 1,
@@ -139,10 +143,11 @@ function createContext(contextOptions, loadOptions) {
                 ...groupKeyPipeline,
                 ...createMatchPipeline(
                   createGroupFieldName(groupIndex),
-                  item.key
-                )
+                  item.key,
+                  contextOptions
+                ),
               ]
-            ).then(r => {
+            ).then((r) => {
               item.items = r;
               item.count = r.length;
               return r;
@@ -150,7 +155,7 @@ function createContext(contextOptions, loadOptions) {
           )
         : [];
 
-    const augmentWithSeparateCount = groupData => {
+    const augmentWithSeparateCount = (groupData) => {
       if (separateCountRequired) {
         // We need to count separately because this is not the lowest level group,
         // but since we didn't query details about our nested group, we can't just go
@@ -167,24 +172,29 @@ function createContext(contextOptions, loadOptions) {
           nextGroup.selector,
           nextGroup.groupInterval,
           groupIndex + 1,
-          contextOptions.timezoneOffset
+          contextOptions
         );
-        return groupData.map(item =>
+        return groupData.map((item) =>
           getCount(collection, [
             ...contextOptions.preProcessingPipeline,
             ...filterPipelineDetails.pipeline,
             ...groupKeyPipeline,
 
             ...matchPipeline,
-            ...createMatchPipeline(createGroupFieldName(groupIndex), item.key),
+            ...createMatchPipeline(
+              createGroupFieldName(groupIndex),
+              item.key,
+              contextOptions
+            ),
             ...createGroupingPipeline(
               nextGroup.desc,
               false,
               true,
-              nextGroupKeyPipeline
+              nextGroupKeyPipeline,
+              contextOptions
             ),
-            ...createCountPipeline()
-          ]).then(r => {
+            ...createCountPipeline(contextOptions),
+          ]).then((r) => {
             item.count = r;
             return r;
           })
@@ -192,9 +202,9 @@ function createContext(contextOptions, loadOptions) {
       } else return [];
     };
 
-    const augmentWithSummaries = groupData =>
+    const augmentWithSummaries = (groupData) =>
       summariesRequired
-        ? groupData.map(item =>
+        ? groupData.map((item) =>
             runSummaryQuery(() =>
               collection
                 .aggregate([
@@ -204,12 +214,13 @@ function createContext(contextOptions, loadOptions) {
                   ...matchPipeline,
                   ...createMatchPipeline(
                     createGroupFieldName(groupIndex),
-                    item.key
+                    item.key,
+                    contextOptions
                   ),
-                  ...summaryPipeline
+                  ...summaryPipeline,
                 ])
                 .toArray()
-            ).then(r =>
+            ).then((r) =>
               populateSummaryResults(item, loadOptions.groupSummary, r[0])
             )
           )
@@ -222,45 +233,51 @@ function createContext(contextOptions, loadOptions) {
       separateCountRequired,
       createSelectProjectExpression(loadOptions.select, true),
       groupKeyPipeline,
-      itemDataRequired ? createSortPipeline(loadOptions.sort) : [],
+      itemDataRequired
+        ? createSortPipeline(loadOptions.sort, contextOptions)
+        : [],
       filterPipelineDetails,
       skipTakePipeline,
       matchPipeline
     ).then(
-      groupData =>
+      (groupData) =>
         /* eslint-disable promise/no-nesting */
         Promise.all([
           ...augmentWithSubGroups(groupData),
           ...augmentWithSeparateCount(groupData),
-          ...augmentWithSummaries(groupData)
+          ...augmentWithSummaries(groupData),
         ]).then(() => groupData)
       /* eslint-enable promise/no-nesting */
     );
   };
 
-  const queryGroups = collection => {
+  const queryGroups = (collection) => {
     const completeFilterPipelineDetails = createCompleteFilterPipeline(
       loadOptions.searchExpr,
       loadOptions.searchOperation,
       loadOptions.searchValue,
       loadOptions.filter,
-      contextOptions.timezoneOffset
+      contextOptions
     );
-    const summaryPipeline = createSummaryPipeline(loadOptions.groupSummary);
+    const summaryPipeline = createSummaryPipeline(
+      loadOptions.groupSummary,
+      contextOptions
+    );
     const skipTakePipeline = createSkipTakePipeline(
       loadOptions.skip,
-      loadOptions.take
+      loadOptions.take,
+      contextOptions
     );
 
     const mainQueryResult = () =>
       queryGroup(
         collection,
         0,
-        createSummaryQueryExecutor(),
+        createSummaryQueryExecutor(undefined),
         completeFilterPipelineDetails,
         skipTakePipeline,
         summaryPipeline
-      ).then(r => ({ data: r }));
+      ).then((r) => ({ data: r }));
 
     const groupCount = () => {
       if (loadOptions.requireGroupCount) {
@@ -278,11 +295,12 @@ function createContext(contextOptions, loadOptions) {
                 group.selector,
                 group.groupInterval,
                 0,
-                contextOptions.timezoneOffset
-              )
+                contextOptions
+              ),
+              contextOptions
             ),
-            ...createCountPipeline()
-          ]).then(r => ({ groupCount: r }))
+            ...createCountPipeline(contextOptions),
+          ]).then((r) => ({ groupCount: r })),
         ];
       } else return [];
     };
@@ -293,21 +311,24 @@ function createContext(contextOptions, loadOptions) {
             getCount(collection, [
               ...contextOptions.preProcessingPipeline,
               ...completeFilterPipelineDetails.pipeline,
-              ...createCountPipeline()
-            ]).then(r => ({ totalCount: r }))
+              ...createCountPipeline(contextOptions),
+            ]).then((r) => ({ totalCount: r })),
           ]
         : [];
 
-    const summary = resultObject =>
+    const summary = (resultObject) =>
       resultObject.totalCount > 0 && loadOptions.totalSummary
         ? collection
             .aggregate([
               ...contextOptions.preProcessingPipeline,
               ...completeFilterPipelineDetails.pipeline,
-              ...createSummaryPipeline(loadOptions.totalSummary)
+              ...createSummaryPipeline(
+                loadOptions.totalSummary,
+                contextOptions
+              ),
             ])
             .toArray()
-            .then(r =>
+            .then((r) =>
               populateSummaryResults(
                 resultObject,
                 loadOptions.totalSummary,
@@ -321,22 +342,27 @@ function createContext(contextOptions, loadOptions) {
       .then(summary);
   };
 
-  const querySimple = collection => {
+  const querySimple = (collection) => {
     const completeFilterPipelineDetails = createCompleteFilterPipeline(
       loadOptions.searchExpr,
       loadOptions.searchOperation,
       loadOptions.searchValue,
       loadOptions.filter,
-      contextOptions.timezoneOffset
+      contextOptions
     );
-    const sortPipeline = createSortPipeline(loadOptions.sort);
+    const sortPipeline = createSortPipeline(loadOptions.sort, contextOptions);
     const skipTakePipeline = createSkipTakePipeline(
       loadOptions.skip,
-      loadOptions.take
+      loadOptions.take,
+      contextOptions
     );
-    const selectPipeline = createSelectPipeline(loadOptions.select);
+    const selectPipeline = createSelectPipeline(
+      loadOptions.select,
+      contextOptions
+    );
     const removeNestedFieldsPipeline = createRemoveNestedFieldsPipeline(
-      completeFilterPipelineDetails.nestedFields
+      completeFilterPipelineDetails.nestedFields,
+      contextOptions
     );
 
     const mainQueryResult = () =>
@@ -347,11 +373,11 @@ function createContext(contextOptions, loadOptions) {
           ...sortPipeline,
           ...skipTakePipeline,
           ...selectPipeline,
-          ...removeNestedFieldsPipeline
+          ...removeNestedFieldsPipeline,
         ])
         .toArray()
-        .then(r => r.map(replaceId))
-        .then(r => ({ data: r }));
+        .then((r) => r.map(replaceId))
+        .then((r) => ({ data: r }));
 
     // FIXME this function is exactly the same as the one in the group query execution path
     const totalCount = () =>
@@ -360,22 +386,25 @@ function createContext(contextOptions, loadOptions) {
             getCount(collection, [
               ...contextOptions.preProcessingPipeline,
               ...completeFilterPipelineDetails.pipeline,
-              ...createCountPipeline()
-            ]).then(r => ({ totalCount: r }))
+              ...createCountPipeline(contextOptions),
+            ]).then((r) => ({ totalCount: r })),
           ]
         : [];
 
     // FIXME and again, exactly the same as the group one
-    const summary = resultObject =>
+    const summary = (resultObject) =>
       resultObject.totalCount > 0 && loadOptions.totalSummary
         ? collection
             .aggregate([
               ...contextOptions.preProcessingPipeline,
               ...completeFilterPipelineDetails.pipeline,
-              ...createSummaryPipeline(loadOptions.totalSummary)
+              ...createSummaryPipeline(
+                loadOptions.totalSummary,
+                contextOptions
+              ),
             ])
             .toArray()
-            .then(r =>
+            .then((r) =>
               populateSummaryResults(
                 resultObject,
                 loadOptions.totalSummary,
@@ -399,7 +428,8 @@ function query(collection, loadOptions = {}, options = {}) {
     // timezone offset for the query, in the form returned by
     // Date.getTimezoneOffset
     timezoneOffset: 0,
-    preProcessingPipeline: []
+    preProcessingPipeline: [],
+    caseInsensitiveRegex: true,
   };
   const contextOptions = Object.assign(standardContextOptions, options);
   const context = createContext(contextOptions, loadOptions);

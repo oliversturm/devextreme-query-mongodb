@@ -349,6 +349,48 @@ suite('query-values', function () {
       });
     });
 
+    test('list should filter with contains', function (tdone) {
+      testQueryValues(tdone, {
+        filter: ['string', 'contains', 'Item'],
+        requireTotalCount: true
+      }, function (res) {
+        expect(res.totalCount, 'totalCount').to.eql(TESTRECORD_COUNT);
+
+        expect(res.data, 'res.data').to.be.instanceof(Array);
+        expect(res.data, 'list length').to.have.lengthOf(TESTRECORD_COUNT);
+      });
+    });
+
+    test('list should filter with contains (case insensitive)', function (tdone) {
+      testQueryValues(tdone, {
+        filter: ['string', 'contains', 'item'],
+        requireTotalCount: true
+      }, function (res) {
+        expect(res.totalCount, 'totalCount').to.eql(TESTRECORD_COUNT);
+
+        expect(res.data, 'res.data').to.be.instanceof(Array);
+        expect(res.data, 'list length').to.have.lengthOf(TESTRECORD_COUNT);
+      });
+    });
+
+    test('list should filter with contains (case sensitive!)', function (tdone) {
+      testQueryValues(tdone, {
+        filter: ['string', 'contains', 'Something'],
+        requireTotalCount: true
+      }, function (res) {
+        expect(res.totalCount, 'totalCount').to.eql(1);
+
+        expect(res.data, 'res.data').to.be.instanceof(Array);
+        expect(res.data, 'list length').to.have.lengthOf(1);
+      }, function (collection) {
+        return [collection.insertOne({
+          string: 'something'
+        }), collection.insertOne({
+          string: 'Something'
+        })];
+      }, { caseInsensitiveRegex: false });
+    });
+
     test('list should filter with endswith, no results', function (tdone) {
       testQueryValues(tdone, {
         filter: ['string', 'endswith', "something that doesn't exist"],
@@ -1654,54 +1696,6 @@ suite('query-values', function () {
         expect(res.data[1].count, 'group 2.count').to.eql(10);
         expect(res.data[1].summary, 'group 2 summary').to.be.instanceof(Array);
         expect(res.data[1].summary, 'group 2 summary length').to.have.lengthOf(1);
-      });
-    });
-
-    test('month and dow should work correctly for May 1st 2017', function (tdone) {
-
-      testQueryValues(tdone, {
-        filter: [['date1.Month', '=', 5], 'and', ['date1.DayOfWeek', '=', 1]],
-        requireTotalCount: true
-      }, function (res) {
-        expect(res.totalCount, 'totalCount').to.eql(1);
-        expect(res.data).to.have.lengthOf(1);
-      }, function (collection) {
-        return [collection.insertOne({
-          date1: new Date(2017, 4, 1),
-          date2: new Date(2017, 4, 1),
-          int1: 10,
-          int2: 10,
-          string: 'something'
-        })];
-      }, {
-        timezoneOffset: new Date().getTimezoneOffset()
-      });
-    });
-
-    test('month grouping should work correctly for May 1st 2017', function (tdone) {
-
-      testQueryValues(tdone, {
-        group: [{
-          selector: 'date1',
-          groupInterval: 'month'
-        }],
-        requireGroupCount: true,
-        requireTotalCount: true
-      }, function (res) {
-        expect(res.totalCount, 'totalCount').to.eql(1);
-        expect(res.groupCount).to.eql(1);
-        expect(res.data).to.have.lengthOf(1);
-        expect(res.data[0].key).to.eql(5);
-      }, function (collection) {
-        return [collection.insertOne({
-          date1: new Date(2017, 4, 1),
-          date2: new Date(2017, 4, 1),
-          int1: 10,
-          int2: 10,
-          string: 'something'
-        })];
-      }, {
-        timezoneOffset: new Date().getTimezoneOffset()
       });
     });
 

@@ -1,7 +1,12 @@
 module.exports = () => ({
   files: ['src/*.js', { pattern: 'src/*.test.js', ignore: true }],
   // excluding index.test.js - these tests require running mongodb
-  tests: ['src/options.test.js', 'src/pipelines.test.js', 'src/utils.test.js'],
+  tests: [
+    //'src/index.test.js',
+    'src/options.test.js',
+    'src/pipelines.test.js',
+    'src/utils.test.js',
+  ],
 
   testFramework: 'mocha',
 
