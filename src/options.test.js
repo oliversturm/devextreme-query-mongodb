@@ -48,7 +48,7 @@ suite('summaryOptionsChecker', function () {
       selector: 'thing',
       extra: 'thing',
     });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'noUnknown' });
   });
 
   test('invalid summaryType', function () {
@@ -56,15 +56,15 @@ suite('summaryOptionsChecker', function () {
       summaryType: 'unknown',
       selector: 'thing',
     });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'oneOf' });
   });
 
   test('invalid selector', function () {
     const result = summaryOptionsChecker.validate({
-      summaryType: 'other',
-      selector: 'thing',
+      summaryType: 'sum',
+      selector: true,
     });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'typeError' });
   });
 });
 
@@ -79,6 +79,16 @@ suite('groupOptionsChecker', function () {
     expect(result).to.eql(null);
   });
 
+  test('valid with groupInterval integer', function () {
+    const result = groupOptionsChecker.validate({
+      selector: 'thing',
+      desc: true,
+      isExpanded: true,
+      groupInterval: 11,
+    });
+    expect(result).to.eql(null);
+  });
+
   test('extra prop', function () {
     const result = groupOptionsChecker.validate({
       selector: 'thing',
@@ -87,7 +97,7 @@ suite('groupOptionsChecker', function () {
       groupInterval: 'year',
       extra: 'thing',
     });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'noUnknown' });
   });
 
   test('missing selector', function () {
@@ -97,7 +107,7 @@ suite('groupOptionsChecker', function () {
       isExpanded: true,
       groupInterval: 'year',
     });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'required' });
   });
 
   test('invalid desc', function () {
@@ -107,7 +117,7 @@ suite('groupOptionsChecker', function () {
       isExpanded: true,
       groupInterval: 'year',
     });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'typeError' });
   });
 
   test('invalid selector', function () {
@@ -117,7 +127,7 @@ suite('groupOptionsChecker', function () {
       isExpanded: true,
       groupInterval: 'year',
     });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'typeError' });
   });
 
   test('invalid isExpanded', function () {
@@ -127,7 +137,7 @@ suite('groupOptionsChecker', function () {
       isExpanded: 42,
       groupInterval: 'year',
     });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'typeError' });
   });
 
   test('invalid groupInterval - not string or number', function () {
@@ -136,8 +146,8 @@ suite('groupOptionsChecker', function () {
       desc: true,
       isExpanded: true,
       groupInterval: true,
-    });
-    expect(result).to.be.an('Error');
+    }); //?
+    expect(result).to.include({ name: 'ValidationError', type: 'or' });
   });
 
   test('invalid groupInterval - not string or integer', function () {
@@ -147,29 +157,29 @@ suite('groupOptionsChecker', function () {
       isExpanded: true,
       groupInterval: 10.3,
     }); //?
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'or' });
   });
 
-  // test('invalid groupInterval - invalid string', function () {
-  //   const result = groupOptionsChecker.validate({
-  //     selector: 'thing',
-  //     desc: true,
-  //     isExpanded: true,
-  //     groupInterval: 'wrong string',
-  //   }); //?
-  //   expect(result).to.be.an('Error');
-  // });
+  test('invalid groupInterval - invalid string', function () {
+    const result = groupOptionsChecker.validate({
+      selector: 'thing',
+      desc: true,
+      isExpanded: true,
+      groupInterval: 'wrong string',
+    }); //?
+    expect(result).to.include({ name: 'ValidationError', type: 'or' });
+  });
 });
 
 suite('sortOptionsChecker', function () {
   test('missing desc', function () {
     const result = sortOptionsChecker.validate({ selector: 'thing' });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'required' });
   });
 
   test('missing selector', function () {
     const result = sortOptionsChecker.validate({ desc: true });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'required' });
   });
 
   test('valid', function () {
@@ -195,7 +205,7 @@ suite('sortOptionsChecker', function () {
       desc: true,
       extra: 'thing',
     });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'noUnknown' });
   });
 
   test('incorrect desc type', function () {
@@ -203,15 +213,15 @@ suite('sortOptionsChecker', function () {
       selector: 'thing',
       desc: 42,
     });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'typeError' });
   });
 
   test('incorrect selector type', function () {
     const result = sortOptionsChecker.validate({
-      selector: {},
+      selector: 42,
       desc: true,
     });
-    expect(result).to.be.an('Error');
+    expect(result).to.include({ name: 'ValidationError', type: 'typeError' });
   });
 });
 

@@ -32,8 +32,8 @@
     "node": ">=7.3"
   },
   "dependencies": {
-    "parambulator": "^1.5.2",
-    "value-fixers": "^1.0.0"
+    "value-fixers": "^1.0.0",
+    "yup": "^0.29.3"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",

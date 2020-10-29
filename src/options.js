@@ -1,5 +1,5 @@
 const valueFixers = require('value-fixers');
-const parambulator = require('parambulator');
+const yup = require('yup');
 
 function fixFilterAndSearch(schema) {
   // currently only for int and float
@@ -75,48 +75,93 @@ function fixFilterAndSearch(schema) {
   };
 }
 
-const sortOptionsChecker = parambulator({
-  required$: ['desc', 'selector'],
-  // isExpanded doesn't make any sense with sort, but the grid seems
-  // to include it occasionally - probably a bug
-  only$: ['desc', 'selector', 'isExpanded'],
-  desc: {
-    type$: 'boolean',
-  },
-  selector: {
-    type$: 'string',
+const wrapYupChecker = (yupChecker) => ({
+  validate: (o) => {
+    try {
+      yupChecker.validateSync(o, { strict: true });
+      return null;
+    } catch (e) {
+      return e;
+    }
   },
 });
 
-const groupOptionsChecker = parambulator({
-  required$: ['selector'],
-  only$: ['desc', 'selector', 'isExpanded', 'groupInterval'],
-  desc: {
-    type$: 'boolean',
-  },
-  isExpanded: {
-    type$: 'boolean',
-  },
-  selector: {
-    type$: 'string',
-  },
-  groupInterval: {
-    type$: ['string', 'integer'],
-    // unclear whether parambulator supports a spec that says "can be enum but also number"
-    //enum$: [ "year", "quarter", "month", "day", "dayOfWeek", "hour", "minute", "second" ] // and numbers?
-  },
+const sortOptionsCheckerYup = yup
+  .object()
+  .shape({
+    desc: yup.bool().required(),
+    selector: yup.string().required(),
+    // Old note - needs rechecking.
+    // isExpanded doesn't make any sense with sort, but the grid seems
+    // to include it occasionally - probably a bug
+    // Btw, this has always been without type restriction - could probably
+    // be bool.
+    isExpanded: yup.mixed(),
+  })
+  .noUnknown();
+
+const sortOptionsChecker = wrapYupChecker(sortOptionsCheckerYup);
+
+// Based on sample code
+// from https://codesandbox.io/s/example-with-or-validate-for-yup-nodelete-dgm4l?file=/src/index.js:29-497
+// from https://github.com/jquense/yup/issues/743
+yup.addMethod(yup.mixed, 'or', function (schemas, msg) {
+  return this.test({
+    name: 'or',
+    message: "Can't find valid schema" || msg,
+    test: (value) => {
+      if (!Array.isArray(schemas))
+        throw new Error('"or" requires schema array');
+
+      const results = schemas.map((schema) =>
+        schema.isValidSync(value, { strict: true })
+      );
+      return results.some((res) => !!res);
+    },
+    exclusive: false,
+  });
 });
 
-const summaryOptionsChecker = parambulator({
-  required$: ['summaryType'],
-  only$: ['summaryType', 'selector'],
-  summaryType: {
-    enum$: ['sum', 'avg', 'min', 'max', 'count'],
-  },
-  selector: {
-    type$: 'string',
-  },
-});
+const groupOptionsCheckerYup = yup
+  .object()
+  .shape({
+    selector: yup.string().required(),
+    desc: yup.bool(),
+    isExpanded: yup.bool(),
+    groupInterval: yup
+      .mixed()
+      .or([
+        yup.number().integer(),
+        yup
+          .mixed()
+          .oneOf([
+            'year',
+            'quarter',
+            'month',
+            'day',
+            'dayOfWeek',
+            'hour',
+            'minute',
+            'second',
+          ]),
+      ]),
+  })
+  .noUnknown();
+
+const groupOptionsChecker = wrapYupChecker(groupOptionsCheckerYup);
+
+const summaryOptionsCheckerYup = yup
+  .object()
+  .shape({
+    summaryType: yup
+      .mixed()
+      .oneOf(['sum', 'avg', 'min', 'max', 'count'])
+      .required(),
+    selector: yup.string(),
+  })
+  .noUnknown();
+
+const summaryOptionsChecker = wrapYupChecker(summaryOptionsCheckerYup);
 
 function validateAll(list, checker, short = true) {
   return list.reduce(
