@@ -75,7 +75,9 @@ suite('pipelines', function () {
     });
 
     var basicNamedGroupIntervalTest = function basicNamedGroupIntervalTest(name, tzo, mongoModName) {
-      var result = createGroupKeyPipeline('sel', name, 0, tzo);
+      var result = createGroupKeyPipeline('sel', name, 0, {
+        timezoneOffset: tzo
+      });
       var wanted = [{
         $addFields: {
           ___group_key_0: _defineProperty({}, '$' + (mongoModName || name), {
@@ -96,7 +98,9 @@ suite('pipelines', function () {
     });
 
     test('groupInterval quarter, timezoneOffset 60', function () {
-      var result = createGroupKeyPipeline('sel', 'quarter', 0, 60);
+      var result = createGroupKeyPipeline('sel', 'quarter', 0, {
+        timezoneOffset: 60
+      });
       var wanted = [{
         $addFields: {
           ___mp2: { $add: [{ $month: { $subtract: ['$sel', 3600000] } }, 2] }
@@ -121,7 +125,9 @@ suite('pipelines', function () {
     });
 
     test('groupInterval dayOfWeek, timezoneOffset 60', function () {
-      var result = createGroupKeyPipeline('sel', 'dayOfWeek', 0, 60);
+      var result = createGroupKeyPipeline('sel', 'dayOfWeek', 0, {
+        timezoneOffset: 60
+      });
       var wanted = [{
         $addFields: {
           ___group_key_0: {
@@ -278,15 +284,15 @@ suite('pipelines', function () {
 
   suite('constructRegex', function () {
     test('works', function () {
-      assert.deepEqual(constructRegex('field', 'regex'), {
-        field: { $regex: 'regex', $options: '' }
+      assert.deepEqual(constructRegex('field', 'regex', true), {
+        field: { $regex: 'regex', $options: 'i' }
       });
     });
   });
 
   suite('parseFilter', function () {
     var testParseFilter = function testParseFilter(input, expectedMatch, expectedFieldList) {
-      var result = parseFilter(input);
+      var result = parseFilter(input, { caseInsensitiveRegex: true });
       var match = result && result.match;
       var fieldList = result ? result.fieldList : [];
       assert.deepEqual(match, expectedMatch);
@@ -365,25 +371,25 @@ suite('pipelines', function () {
 
     test('startswith', function () {
       testParseFilter(['thing', 'startswith', 'val'], {
-        thing: { $regex: '^val', $options: '' }
+        thing: { $regex: '^val', $options: 'i' }
       }, ['thing']);
     });
 
     test('endswith', function () {
       testParseFilter(['thing', 'endswith', 'val'], {
-        thing: { $regex: 'val$', $options: '' }
+        thing: { $regex: 'val$', $options: 'i' }
       }, ['thing']);
     });
 
     test('contains', function () {
       testParseFilter(['thing', 'contains', 'val'], {
-        thing: { $regex: 'val', $options: '' }
+        thing: { $regex: 'val', $options: 'i' }
       }, ['thing']);
     });
 
     test('notcontains', function () {
       testParseFilter(['thing', 'notcontains', 'val'], {
-        thing: { $regex: '^((?!val).)*$', $options: '' }
+        thing: { $regex: '^((?!val).)*$', $options: 'i' }
       }, ['thing']);
     });
 
@@ -616,7 +622,7 @@ suite('pipelines', function () {
     });
 
     test('nested fields, tzo 60', function () {
-      assert.deepEqual(createAddNestedFieldsPipeline(['field1', 'field2.year', 'field3.quarter', 'field4.month', 'field3.day', 'field3.dayofweek'], 60), {
+      assert.deepEqual(createAddNestedFieldsPipeline(['field1', 'field2.year', 'field3.quarter', 'field4.month', 'field3.day', 'field3.dayofweek'], { timezoneOffset: 60 }), {
         pipeline: [{
           $addFields: {
             ___field3_mp2: {
@@ -667,7 +673,7 @@ suite('pipelines', function () {
 
   suite('createCompleteFilterPipeline', function () {
     test('works', function () {
-      assert.deepEqual(createCompleteFilterPipeline('thing', '=', 42, [['thing2', '>', 13], 'and', ['date.month', '<', 5]], 60), {
+      assert.deepEqual(createCompleteFilterPipeline('thing', '=', 42, [['thing2', '>', 13], 'and', ['date.month', '<', 5]], { timezoneOffset: 60 }), {
         pipeline: [{
           $addFields: {
             ___date_month: {

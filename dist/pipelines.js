@@ -27,8 +27,9 @@ var subtractMod = function subtractMod(a, b) {
   };
 };
 
-var createGroupKeyPipeline = function createGroupKeyPipeline(selector, groupInterval, groupIndex) {
-  var timezoneOffset = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 0;
+var createGroupKeyPipeline = function createGroupKeyPipeline(selector, groupInterval, groupIndex, contextOptions) {
+  var timezoneOffset = contextOptions.timezoneOffset;
+
 
   var wrapGroupKey = function wrapGroupKey(keyExpr) {
     return {
@@ -188,8 +189,8 @@ var construct = function construct(fieldName, operator, compValue) {
   return _defineProperty({}, fieldName, _defineProperty({}, operator, compValue));
 };
 
-var constructRegex = function constructRegex(fieldName, regex) {
-  return _defineProperty({}, fieldName, { $regex: regex, $options: '' });
+var constructRegex = function constructRegex(fieldName, regex, caseInsensitive) {
+  return _defineProperty({}, fieldName, { $regex: regex, $options: caseInsensitive ? 'i' : '' });
 };
 
 var isCorrectFilterOperatorStructure = function isCorrectFilterOperatorStructure(element, operator) {
@@ -343,6 +344,9 @@ var fixAndChainWithIncompleteAnds = function fixAndChainWithIncompleteAnds(eleme
 };
 
 var parseFilter = function parseFilter(element) {
+  var contextOptions = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+  var caseInsensitiveRegex = contextOptions.caseInsensitiveRegex;
+
 
   var rval = function rval(match, fieldList) {
     return { match: match, fieldList: fieldList };
@@ -354,26 +358,26 @@ var parseFilter = function parseFilter(element) {
     return rval(construct(fieldName, '$eq', true), [element]);
   } else if (Array.isArray(element)) {
     if (element.length === 1 && Array.isArray(element[0])) {
-      return parseFilter(element[0]);
+      return parseFilter(element[0], contextOptions);
     } else if (element.length === 2) {
       if (element[0] === '!') {
-        var _parseFilter = parseFilter(element[1]),
+        var _parseFilter = parseFilter(element[1], contextOptions),
             match = _parseFilter.match,
             fieldList = _parseFilter.fieldList;
 
         if (match) return rval({
           $nor: [match]
         }, fieldList);else return null;
-      } else if (isAndChainWithIncompleteAnds(element)) return parseFilter(fixAndChainWithIncompleteAnds(element));else return null;
+      } else if (isAndChainWithIncompleteAnds(element)) return parseFilter(fixAndChainWithIncompleteAnds(element), contextOptions);else return null;
     } else {
-      if (isAndChainWithIncompleteAnds(element)) return parseFilter(fixAndChainWithIncompleteAnds(element));else if (element.length % 2 === 1) {
+      if (isAndChainWithIncompleteAnds(element)) return parseFilter(fixAndChainWithIncompleteAnds(element), contextOptions);else if (element.length % 2 === 1) {
         var operator = String(element[1]).toLowerCase();
 
         if (['and', 'or'].includes(operator)) {
           if (isCorrectFilterOperatorStructure(element, operator)) {
             var result = element.reduce(function (r, v) {
               if (r.previous) return _extends({}, r, { previous: false });else {
-                var nestedResult = parseFilter(v);
+                var nestedResult = parseFilter(v, contextOptions);
                 var nestedFilter = nestedResult && nestedResult.match;
                 var _fieldList = nestedResult ? nestedResult.fieldList : [];
                 if (nestedFilter) r.list.push(nestedFilter);
@@ -406,13 +410,13 @@ var parseFilter = function parseFilter(element) {
               case '<=':
                 return rval(construct(_fieldName2, '$lte', element[2]), [element[0]]);
               case 'startswith':
-                return rval(constructRegex(_fieldName2, '^' + element[2]), [element[0]]);
+                return rval(constructRegex(_fieldName2, '^' + element[2], caseInsensitiveRegex), [element[0]]);
               case 'endswith':
-                return rval(constructRegex(_fieldName2, element[2] + '$'), [element[0]]);
+                return rval(constructRegex(_fieldName2, element[2] + '$', caseInsensitiveRegex), [element[0]]);
               case 'contains':
-                return rval(constructRegex(_fieldName2, element[2]), [element[0]]);
+                return rval(constructRegex(_fieldName2, element[2], caseInsensitiveRegex), [element[0]]);
               case 'notcontains':
-                return rval(constructRegex(_fieldName2, '^((?!' + element[2] + ').)*$'), [element[0]]);
+                return rval(constructRegex(_fieldName2, '^((?!' + element[2] + ').)*$', caseInsensitiveRegex), [element[0]]);
               case 'equalsobjectid':
                 return rval(construct(_fieldName2, '$eq', ObjectId(element[2])), [element[0]]);
               default:
@@ -425,14 +429,14 @@ var parseFilter = function parseFilter(element) {
   } else return null;
 };
 
-var createFilterPipeline = function createFilterPipeline(filter) {
+var createFilterPipeline = function createFilterPipeline(filter, contextOptions) {
   var dummy = {
     pipeline: [],
     fieldList: []
   };
 
   if (filter) {
-    var result = parseFilter(filter);
+    var result = parseFilter(filter, contextOptions);
     var match = result && result.match;
     var fieldList = result ? result.fieldList : [];
     if (match) return {
@@ -499,7 +503,7 @@ var createSummaryPipeline = function createSummaryPipeline(summary) {
   } else return [];
 };
 
-var createSearchPipeline = function createSearchPipeline(expr, op, val) {
+var createSearchPipeline = function createSearchPipeline(expr, op, val, contextOptions) {
   var dummy = {
     pipeline: [],
     fieldList: []
@@ -537,7 +541,7 @@ var createSearchPipeline = function createSearchPipeline(expr, op, val) {
     }
   } else return dummy;
 
-  return createFilterPipeline(criteria);
+  return createFilterPipeline(criteria, contextOptions);
 };
 
 var createSelectProjectExpression = function createSelectProjectExpression(fields) {
@@ -574,10 +578,10 @@ var createSelectProjectExpression = function createSelectProjectExpression(field
   } else return undefined;
 };
 
-var createSelectPipeline = function createSelectPipeline(fields) {
+var createSelectPipeline = function createSelectPipeline(fields, contextOptions) {
   if (fields && fields.length > 0) {
     return [{
-      $project: createSelectProjectExpression(fields)
+      $project: createSelectProjectExpression(fields, contextOptions)
     }];
   } else return [];
 };
@@ -594,8 +598,8 @@ var checkNestedField = function checkNestedField(fieldName) {
   };
 };
 
-var createAddNestedFieldsPipeline = function createAddNestedFieldsPipeline(fieldNames) {
-  var timezoneOffset = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+var createAddNestedFieldsPipeline = function createAddNestedFieldsPipeline(fieldNames, contextOptions) {
+  var timezoneOffset = contextOptions.timezoneOffset;
 
   var pr = fieldNames.reduce(function (r, v) {
     var nf = checkNestedField(v);
@@ -670,14 +674,12 @@ var createAddNestedFieldsPipeline = function createAddNestedFieldsPipeline(field
   return pr;
 };
 
-var createCompleteFilterPipeline = function createCompleteFilterPipeline(searchExpr, searchOperation, searchValue, filter) {
-  var timezoneOffset = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : 0;
+var createCompleteFilterPipeline = function createCompleteFilterPipeline(searchExpr, searchOperation, searchValue, filter, contextOptions) {
+  var searchPipeline = createSearchPipeline(searchExpr, searchOperation, searchValue, contextOptions);
 
-  var searchPipeline = createSearchPipeline(searchExpr, searchOperation, searchValue);
+  var filterPipeline = createFilterPipeline(filter, contextOptions);
 
-  var filterPipeline = createFilterPipeline(filter);
-
-  var addNestedFieldsPipelineDetails = createAddNestedFieldsPipeline(searchPipeline.fieldList.concat(filterPipeline.fieldList), timezoneOffset);
+  var addNestedFieldsPipelineDetails = createAddNestedFieldsPipeline(searchPipeline.fieldList.concat(filterPipeline.fieldList), contextOptions);
 
   return {
     pipeline: addNestedFieldsPipelineDetails.pipeline.concat(searchPipeline.pipeline, filterPipeline.pipeline),

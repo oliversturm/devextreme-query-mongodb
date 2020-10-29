@@ -5,7 +5,7 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
 var valueFixers = require('value-fixers');
-var parambulator = require('parambulator');
+var yup = require('yup');
 
 function fixFilterAndSearch(schema) {
 
@@ -46,45 +46,61 @@ function fixFilterAndSearch(schema) {
   };
 }
 
-var sortOptionsChecker = parambulator({
-  required$: ['desc', 'selector'],
+var wrapYupChecker = function wrapYupChecker(yupChecker) {
+  return {
+    validate: function validate(o) {
+      try {
+        yupChecker.validateSync(o, { strict: true });
+        return null;
+      } catch (e) {
+        return e;
+      }
+    }
+  };
+};
 
-  only$: ['desc', 'selector', 'isExpanded'],
-  desc: {
-    type$: 'boolean'
-  },
-  selector: {
-    type$: 'string'
-  }
+var sortOptionsCheckerYup = yup.object().shape({
+  desc: yup.bool().required(),
+  selector: yup.string().required(),
+
+  isExpanded: yup.mixed()
+}).noUnknown();
+
+var sortOptionsChecker = wrapYupChecker(sortOptionsCheckerYup);
+
+yup.addMethod(yup.mixed, 'or', function (schemas, msg) {
+  return this.test({
+    name: 'or',
+    message: "Can't find valid schema" || msg,
+    test: function test(value) {
+      if (!Array.isArray(schemas)) throw new Error('"or" requires schema array');
+
+      var results = schemas.map(function (schema) {
+        return schema.isValidSync(value, { strict: true });
+      });
+      return results.some(function (res) {
+        return !!res;
+      });
+    },
+    exclusive: false
+  });
 });
 
-var groupOptionsChecker = parambulator({
-  required$: ['selector'],
-  only$: ['desc', 'selector', 'isExpanded', 'groupInterval'],
-  desc: {
-    type$: 'boolean'
-  },
-  isExpanded: {
-    type$: 'boolean'
-  },
-  selector: {
-    type$: 'string'
-  },
-  groupInterval: {
-    type$: ['string', 'integer']
-  }
-});
+var groupOptionsCheckerYup = yup.object().shape({
+  selector: yup.string().required(),
+  desc: yup.bool(),
+  isExpanded: yup.bool(),
+  groupInterval: yup.mixed().or([yup.number().integer(), yup.mixed().oneOf(['year', 'quarter', 'month', 'day', 'dayOfWeek', 'hour', 'minute', 'second'])])
+}).noUnknown();
 
-var summaryOptionsChecker = parambulator({
-  required$: ['summaryType'],
-  only$: ['summaryType', 'selector'],
-  summaryType: {
-    enum$: ['sum', 'avg', 'min', 'max', 'count']
-  },
-  selector: {
-    type$: 'string'
-  }
-});
+var groupOptionsChecker = wrapYupChecker(groupOptionsCheckerYup);
+
+var summaryOptionsCheckerYup = yup.object().shape({
+  summaryType: yup.mixed().oneOf(['sum', 'avg', 'min', 'max', 'count']).required(),
+  selector: yup.string()
+}).noUnknown();
+
+var summaryOptionsChecker = wrapYupChecker(summaryOptionsCheckerYup);
 
 function validateAll(list, checker) {
   var short = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
@@ -101,7 +117,17 @@ function validateAll(list, checker) {
 }
 
 function parseAndFix(arg) {
-  var ob = typeof arg === 'string' ? JSON.parse(arg) : arg;
+  var canBeString = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+
+  var ob = arg;
+  if (typeof arg === 'string') {
+    try {
+      ob = JSON.parse(arg);
+    } catch (e) {
+      if (!canBeString) throw e;
+      return arg;
+    }
+  }
   return valueFixers.fixObject(ob, valueFixers.defaultFixers.concat(valueFixers.fixBool));
 }
 
@@ -122,7 +148,7 @@ function wrapProcessingOptions(po) {
 }
 
 function check(qry, onames, checker) {
-  var converter = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : function (v, vname) {
+  var converter = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : function (v) {
     return v;
   };
   var defaultValue = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : {};
@@ -138,7 +164,6 @@ function check(qry, onames, checker) {
     var vals = options.map(function (o) {
       return converter(qry[o], o);
     });
-
 
     var checkResult = checker.apply(undefined, _toConsumableArray(vals));
 
@@ -176,9 +201,9 @@ function skipOptions(qry) {
 
 function totalCountOptions(qry) {
   return check(qry, 'requireTotalCount', function (requireTotalCount) {
-    return requireTotalCount ? {
+    return {
       requireTotalCount: requireTotalCount
-    } : null;
+    };
   }, function (requireTotalCount) {
     return representsTrue(requireTotalCount);
   });
@@ -205,9 +230,9 @@ function groupOptions(qry) {
         if (vr.valid) return mergeResults([wrapLoadOptions({
           group: groupOptions
         }), check(qry, 'requireGroupCount', function (requireGroupCount) {
-          return requireGroupCount ? {
+          return {
             requireGroupCount: requireGroupCount
-          } : null;
+          };
         }, function (requireGroupCount) {
           return representsTrue(requireGroupCount);
         }), check(qry, 'groupSummary', function (groupSummary) {
@@ -244,7 +269,7 @@ function totalSummaryOptions(qry) {
 
 function filterOptions(qry) {
   return check(qry, 'filter', function (filter) {
-    var filterOptions = parseAndFix(filter);
+    var filterOptions = parseAndFix(filter, true);
     if (typeof filterOptions === 'string' || Array.isArray(filterOptions)) return {
       filter: filterOptions
     };else return null;
@@ -263,7 +288,7 @@ function searchOptions(qry) {
 
 function selectOptions(qry) {
   return check(qry, 'select', function (select) {
-    var selectOptions = parseAndFix(select);
+    var selectOptions = parseAndFix(select, true);
     if (typeof selectOptions === 'string') return {
       select: [selectOptions]
     };else if (Array.isArray(selectOptions)) {
@@ -323,6 +348,20 @@ function getOptions(qry, schema) {
 module.exports = {
   getOptions: getOptions,
   private: {
-    fixFilterAndSearch: fixFilterAndSearch
+    fixFilterAndSearch: fixFilterAndSearch,
+    validateAll: validateAll,
+    check: check,
+    takeOptions: takeOptions,
+    skipOptions: skipOptions,
+    totalCountOptions: totalCountOptions,
+    sortOptions: sortOptions,
+    groupOptions: groupOptions,
+    totalSummaryOptions: totalSummaryOptions,
+    filterOptions: filterOptions,
+    searchOptions: searchOptions,
+    selectOptions: selectOptions,
+    sortOptionsChecker: sortOptionsChecker,
+    groupOptionsChecker: groupOptionsChecker,
+    summaryOptionsChecker: summaryOptionsChecker
   }
 };
