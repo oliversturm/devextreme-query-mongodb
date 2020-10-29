@@ -315,6 +315,16 @@ function timezoneOptions(qry) {
   }, wrapProcessingOptions);
 }
 
+function caseInsensitiveRegexOptions(qry) {
+  return check(qry, 'caseInsensitiveRegex', function (caseInsensitiveRegex) {
+    return {
+      caseInsensitiveRegex: caseInsensitiveRegex
+    };
+  }, function (caseInsensitiveRegex) {
+    return representsTrue(caseInsensitiveRegex);
+  }, { caseInsensitiveRegex: true }, wrapProcessingOptions);
+}
+
 function summaryQueryLimitOptions(qry) {
   return check(qry, 'summaryQueryLimit', function (sql) {
     return sql >= 0 ? {
@@ -340,7 +350,7 @@ function getOptions(qry, schema) {
 
   var fixedQry = schema ? fixFilterAndSearch(schema)(qry) : qry;
 
-  return mergeResults([takeOptions, skipOptions, totalCountOptions, sortOptions, groupOptions, totalSummaryOptions, filterOptions, searchOptions, selectOptions, timezoneOptions, summaryQueryLimitOptions].map(function (f) {
+  return mergeResults([takeOptions, skipOptions, totalCountOptions, sortOptions, groupOptions, totalSummaryOptions, filterOptions, searchOptions, selectOptions, timezoneOptions, summaryQueryLimitOptions, caseInsensitiveRegexOptions].map(function (f) {
     return f(fixedQry);
   }));
 }
@@ -362,6 +372,7 @@ module.exports = {
     selectOptions: selectOptions,
     sortOptionsChecker: sortOptionsChecker,
     groupOptionsChecker: groupOptionsChecker,
-    summaryOptionsChecker: summaryOptionsChecker
+    summaryOptionsChecker: summaryOptionsChecker,
+    caseInsensitiveRegexOptions: caseInsensitiveRegexOptions
   }
 };

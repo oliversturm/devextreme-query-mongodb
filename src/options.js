@@ -439,6 +439,19 @@ function timezoneOptions(qry) {
   );
 }
 
+function caseInsensitiveRegexOptions(qry) {
+  return check(
+    qry,
+    'caseInsensitiveRegex',
+    (caseInsensitiveRegex) => ({
+      caseInsensitiveRegex,
+    }),
+    (caseInsensitiveRegex) => representsTrue(caseInsensitiveRegex),
+    { caseInsensitiveRegex: true },
+    wrapProcessingOptions
+  );
+}
+
 function summaryQueryLimitOptions(qry) {
   return check(
     qry,
@@ -492,6 +505,7 @@ function getOptions(qry, schema) {
       selectOptions,
       timezoneOptions,
       summaryQueryLimitOptions,
+      caseInsensitiveRegexOptions,
     ].map((f) => f(fixedQry))
   );
 }
@@ -514,5 +528,6 @@ module.exports = {
     sortOptionsChecker,
     groupOptionsChecker,
     summaryOptionsChecker,
+    caseInsensitiveRegexOptions,
   },
 };

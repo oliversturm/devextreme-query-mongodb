@@ -22,6 +22,7 @@ const {
     sortOptionsChecker,
     groupOptionsChecker,
     summaryOptionsChecker,
+    caseInsensitiveRegexOptions,
   },
 } = require('./options');
 
@@ -663,6 +664,19 @@ suite('getOptions', function () {
       },
       processingOptions: {
         timezoneOffset: -60,
+      },
+    });
+  });
+
+  test('take and total count with caseInsensitiveRegex', function () {
+    testOptions('take=10&requireTotalCount=true&caseInsensitiveRegex=false', {
+      errors: [],
+      loadOptions: {
+        take: 10,
+        requireTotalCount: true,
+      },
+      processingOptions: {
+        caseInsensitiveRegex: false,
       },
     });
   });

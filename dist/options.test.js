@@ -21,7 +21,8 @@ var _require = require('./options'),
     selectOptions = _require$private.selectOptions,
     sortOptionsChecker = _require$private.sortOptionsChecker,
     groupOptionsChecker = _require$private.groupOptionsChecker,
-    summaryOptionsChecker = _require$private.summaryOptionsChecker;
+    summaryOptionsChecker = _require$private.summaryOptionsChecker,
+    caseInsensitiveRegexOptions = _require$private.caseInsensitiveRegexOptions;
 
 function testOptions(queryString, expectedResult, schema) {
   var result = getOptions(qs.parse(queryString), schema);
@@ -613,6 +614,19 @@ suite('getOptions', function () {
       },
       processingOptions: {
         timezoneOffset: -60
+      }
+    });
+  });
+
+  test('take and total count with caseInsensitiveRegex', function () {
+    testOptions('take=10&requireTotalCount=true&caseInsensitiveRegex=false', {
+      errors: [],
+      loadOptions: {
+        take: 10,
+        requireTotalCount: true
+      },
+      processingOptions: {
+        caseInsensitiveRegex: false
       }
     });
   });
