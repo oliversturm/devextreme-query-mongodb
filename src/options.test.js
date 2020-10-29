@@ -19,6 +19,9 @@ const {
     filterOptions,
     searchOptions,
     selectOptions,
+    sortOptionsChecker,
+    groupOptionsChecker,
+    summaryOptionsChecker,
   },
 } = require('./options');
 
@@ -29,6 +32,188 @@ function testOptions(queryString, expectedResult, schema) {
 
   expect(result).to.eql(expectedResult);
 }
+
+suite('summaryOptionsChecker', function () {
+  test('valid', function () {
+    const result = summaryOptionsChecker.validate({
+      summaryType: 'sum',
+      selector: 'thing',
+    });
+    expect(result).to.eql(null);
+  });
+
+  test('extra prop', function () {
+    const result = summaryOptionsChecker.validate({
+      summaryType: 'sum',
+      selector: 'thing',
+      extra: 'thing',
+    });
+    expect(result).to.be.an('Error');
+  });
+
+  test('invalid summaryType', function () {
+    const result = summaryOptionsChecker.validate({
+      summaryType: 'unknown',
+      selector: 'thing',
+    });
+    expect(result).to.be.an('Error');
+  });
+
+  test('invalid selector', function () {
+    const result = summaryOptionsChecker.validate({
+      summaryType: 'other',
+      selector: 'thing',
+    });
+    expect(result).to.be.an('Error');
+  });
+});
+
+suite('groupOptionsChecker', function () {
+  test('valid', function () {
+    const result = groupOptionsChecker.validate({
+      selector: 'thing',
+      desc: true,
+      isExpanded: true,
+      groupInterval: 'year',
+    });
+    expect(result).to.eql(null);
+  });
+
+  test('extra prop', function () {
+    const result = groupOptionsChecker.validate({
+      selector: 'thing',
+      desc: true,
+      isExpanded: true,
+      groupInterval: 'year',
+      extra: 'thing',
+    });
+    expect(result).to.be.an('Error');
+  });
+
+  test('missing selector', function () {
+    const result = groupOptionsChecker.validate({
+      //      selector: 'thing',
+      desc: true,
+      isExpanded: true,
+      groupInterval: 'year',
+    });
+    expect(result).to.be.an('Error');
+  });
+
+  test('invalid desc', function () {
+    const result = groupOptionsChecker.validate({
+      selector: 'thing',
+      desc: 42,
+      isExpanded: true,
+      groupInterval: 'year',
+    });
+    expect(result).to.be.an('Error');
+  });
+
+  test('invalid selector', function () {
+    const result = groupOptionsChecker.validate({
+      selector: 42,
+      desc: true,
+      isExpanded: true,
+      groupInterval: 'year',
+    });
+    expect(result).to.be.an('Error');
+  });
+
+  test('invalid isExpanded', function () {
+    const result = groupOptionsChecker.validate({
+      selector: 'thing',
+      desc: true,
+      isExpanded: 42,
+      groupInterval: 'year',
+    });
+    expect(result).to.be.an('Error');
+  });
+
+  test('invalid groupInterval - not string or number', function () {
+    const result = groupOptionsChecker.validate({
+      selector: 'thing',
+      desc: true,
+      isExpanded: true,
+      groupInterval: true,
+    });
+    expect(result).to.be.an('Error');
+  });
+
+  test('invalid groupInterval - not string or integer', function () {
+    const result = groupOptionsChecker.validate({
+      selector: 'thing',
+      desc: true,
+      isExpanded: true,
+      groupInterval: 10.3,
+    }); //?
+    expect(result).to.be.an('Error');
+  });
+
+  // test('invalid groupInterval - invalid string', function () {
+  //   const result = groupOptionsChecker.validate({
+  //     selector: 'thing',
+  //     desc: true,
+  //     isExpanded: true,
+  //     groupInterval: 'wrong string',
+  //   }); //?
+  //   expect(result).to.be.an('Error');
+  // });
+});
+
+suite('sortOptionsChecker', function () {
+  test('missing desc', function () {
+    const result = sortOptionsChecker.validate({ selector: 'thing' });
+    expect(result).to.be.an('Error');
+  });
+
+  test('missing selector', function () {
+    const result = sortOptionsChecker.validate({ desc: true });
+    expect(result).to.be.an('Error');
+  });
+
+  test('valid', function () {
+    const result = sortOptionsChecker.validate({
+      selector: 'thing',
+      desc: true,
+    });
+    expect(result).to.eql(null);
+  });
+
+  test('valid with isExpanded', function () {
+    const result = sortOptionsChecker.validate({
+      selector: 'thing',
+      desc: true,
+      isExpanded: 'random thing',
+    });
+    expect(result).to.eql(null);
+  });
+
+  test('extra prop', function () {
+    const result = sortOptionsChecker.validate({
+      selector: 'thing',
+      desc: true,
+      extra: 'thing',
+    });
+    expect(result).to.be.an('Error');
+  });
+
+  test('incorrect desc type', function () {
+    const result = sortOptionsChecker.validate({
+      selector: 'thing',
+      desc: 42,
+    });
+    expect(result).to.be.an('Error');
+  });
+
+  test('incorrect selector type', function () {
+    const result = sortOptionsChecker.validate({
+      selector: {},
+      desc: true,
+    });
+    expect(result).to.be.an('Error');
+  });
+});
 
 suite('takeOptions', function () {
   test('valid', function () {

@@ -466,5 +466,8 @@ module.exports = {
     filterOptions,
     searchOptions,
     selectOptions,
+    sortOptionsChecker,
+    groupOptionsChecker,
+    summaryOptionsChecker,
   },
 };
