@@ -1,5 +1,5 @@
 const valueFixers = require('value-fixers');
-const parambulator = require('parambulator');
+const yup = require('yup');
 
 function fixFilterAndSearch(schema) {
   // currently only for int and float
@@ -14,7 +14,7 @@ function fixFilterAndSearch(schema) {
   function fixValue(type, value) {
     return {
       int: parseInt,
-      float: parseFloat
+      float: parseFloat,
     }[type](value);
   }
 
@@ -27,8 +27,16 @@ function fixFilterAndSearch(schema) {
       operators.includes(f[1])
     )
       return [f[0], f[1], fixValue(schema[f[0]], f[2])];
-    else return f.map(e => fixFilter(e));
+    else return f.map((e) => fixFilter(e));
   }
+
+  // According to https://js.devexpress.com/Documentation/ApiReference/Data_Layer/DataSource/Configuration/#searchExpr
+  // it is possible to pass an array of field values for searchExpr: ["firstName", "lastName"]
+  // For "fixing" purposes, we need to assume that all such fields have the same
+  // type. So if an array is passed for searchExpr (se), we simply look for the
+  // first item in that array with a corresponding schema entry and use this
+  // going forward. If you have fields in this array which are defined in the
+  // schema to have different types, then that's your mistake.
 
   function fixSearch(se, so, sv) {
     if (!se || !so || !sv || typeof sv !== 'string') return sv;
@@ -36,12 +44,12 @@ function fixFilterAndSearch(schema) {
       typeof se === 'string'
         ? schema[se]
         : Array.isArray(se)
-        ? se.find(e => (schema[e] ? e : null))
+        ? se.find((e) => (schema[e] ? e : null))
         : null;
     return fieldName ? fixValue(schema[fieldName], sv) : sv;
   }
 
-  return qry => {
+  return (qry) => {
     if (!qry) return qry;
     const fixedFilter = fixFilter(qry.filter);
     const fixedSearchValue = fixSearch(
@@ -55,60 +63,105 @@ function fixFilterAndSearch(schema) {
       qry,
       fixedFilter
         ? {
-            filter: fixedFilter
+            filter: fixedFilter,
           }
         : {},
       fixedSearchValue
         ? {
-            searchValue: fixedSearchValue
+            searchValue: fixedSearchValue,
           }
         : {}
     );
   };
 }
 
-const sortOptionsChecker = parambulator({
-  required$: ['desc', 'selector'],
-  // isExpanded doesn't make any sense with sort, but the grid seems
-  // to include it occasionally - probably a bug
-  only$: ['desc', 'selector', 'isExpanded'],
-  desc: {
-    type$: 'boolean'
+const wrapYupChecker = (yupChecker) => ({
+  validate: (o) => {
+    try {
+      yupChecker.validateSync(o, { strict: true });
+      return null;
+    } catch (e) {
+      return e;
+    }
   },
-  selector: {
-    type$: 'string'
-  }
 });
 
-const groupOptionsChecker = parambulator({
-  required$: ['selector'],
-  only$: ['desc', 'selector', 'isExpanded', 'groupInterval'],
-  desc: {
-    type$: 'boolean'
-  },
-  isExpanded: {
-    type$: 'boolean'
-  },
-  selector: {
-    type$: 'string'
-  },
-  groupInterval: {
-    type$: ['string', 'integer']
-    // unclear whether parambulator supports a spec that says "can be enum but also number"
-    //enum$: [ "year", "quarter", "month", "day", "dayOfWeek", "hour", "minute", "second" ] // and numbers?
-  }
+const sortOptionsCheckerYup = yup
+  .object()
+  .shape({
+    desc: yup.bool().required(),
+    selector: yup.string().required(),
+    // Old note - needs rechecking.
+    // isExpanded doesn't make any sense with sort, but the grid seems
+    // to include it occasionally - probably a bug
+    // Btw, this has always been without type restriction - could probably
+    // be bool.
+    isExpanded: yup.mixed(),
+  })
+  .noUnknown();
+
+const sortOptionsChecker = wrapYupChecker(sortOptionsCheckerYup);
+
+// Based on sample code
+// from https://codesandbox.io/s/example-with-or-validate-for-yup-nodelete-dgm4l?file=/src/index.js:29-497
+// from https://github.com/jquense/yup/issues/743
+yup.addMethod(yup.mixed, 'or', function (schemas, msg) {
+  return this.test({
+    name: 'or',
+    message: "Can't find valid schema" || msg,
+    test: (value) => {
+      if (!Array.isArray(schemas))
+        throw new Error('"or" requires schema array');
+
+      const results = schemas.map((schema) =>
+        schema.isValidSync(value, { strict: true })
+      );
+      return results.some((res) => !!res);
+    },
+    exclusive: false,
+  });
 });
 
-const summaryOptionsChecker = parambulator({
-  required$: ['summaryType'],
-  only$: ['summaryType', 'selector'],
-  summaryType: {
-    enum$: ['sum', 'avg', 'min', 'max', 'count']
-  },
-  selector: {
-    type$: 'string'
-  }
-});
+const groupOptionsCheckerYup = yup
+  .object()
+  .shape({
+    selector: yup.string().required(),
+    desc: yup.bool(),
+    isExpanded: yup.bool(),
+    groupInterval: yup
+      .mixed()
+      .or([
+        yup.number().integer(),
+        yup
+          .mixed()
+          .oneOf([
+            'year',
+            'quarter',
+            'month',
+            'day',
+            'dayOfWeek',
+            'hour',
+            'minute',
+            'second',
+          ]),
+      ]),
+  })
+  .noUnknown();
+
+const groupOptionsChecker = wrapYupChecker(groupOptionsCheckerYup);
+
+const summaryOptionsCheckerYup = yup
+  .object()
+  .shape({
+    summaryType: yup
+      .mixed()
+      .oneOf(['sum', 'avg', 'min', 'max', 'count'])
+      .required(),
+    selector: yup.string(),
+  })
+  .noUnknown();
+
+const summaryOptionsChecker = wrapYupChecker(summaryOptionsCheckerYup);
 
 function validateAll(list, checker, short = true) {
   return list.reduce(
@@ -125,8 +178,16 @@ function validateAll(list, checker, short = true) {
   );
 }
 
-function parseAndFix(arg) {
-  const ob = typeof arg === 'string' ? JSON.parse(arg) : arg;
+function parseAndFix(arg, canBeString = false) {
+  let ob = arg;
+  if (typeof arg === 'string') {
+    try {
+      ob = JSON.parse(arg);
+    } catch (e) {
+      if (!canBeString) throw e;
+      return arg;
+    }
+  }
   return valueFixers.fixObject(
     ob,
     valueFixers.defaultFixers.concat(valueFixers.fixBool)
@@ -139,13 +200,13 @@ function representsTrue(val) {
 
 function wrapLoadOptions(lo) {
   return {
-    loadOptions: lo
+    loadOptions: lo,
   };
 }
 
 function wrapProcessingOptions(po) {
   return {
-    processingOptions: po
+    processingOptions: po,
   };
 }
 
@@ -153,30 +214,30 @@ function check(
   qry,
   onames,
   checker,
-  converter = (v, vname) => v,
+  converter = (v /*, vname*/) => v,
   defaultValue = {},
   wrapper = wrapLoadOptions
 ) {
   const options = typeof onames === 'string' ? [onames] : onames;
   const allFound = qry && options.reduce((r, v) => r && !!qry[v], true);
 
-  // console.log(`Options: ${JSON.stringify(options)}, allFound: ${allFound}`);
-
   if (!allFound) return defaultValue;
   try {
-    const vals = options.map(o => converter(qry[o], o));
-    // console.log('Vals: ', JSON.stringify(vals));
+    const vals = options.map((o) => converter(qry[o], o));
 
     const checkResult = checker(...vals);
-    // console.log('Check results: ', JSON.stringify(checkResult));
+
+    // It's currently not possible to return per-value errors
+    // If something goes wrong, all tested options will be highlighted
+    // as errors at the same time.
     return checkResult
       ? wrapper(checkResult)
       : {
-          errors: options.map(o => `Invalid '${o}': ${qry[o]}`)
+          errors: options.map((o) => `Invalid '${o}': ${qry[o]}`),
         };
   } catch (err) {
     return {
-      errors: [err]
+      errors: [err],
     };
   }
 }
@@ -185,13 +246,13 @@ function takeOptions(qry) {
   return check(
     qry,
     'take',
-    take =>
+    (take) =>
       take >= 0
         ? {
-            take
+            take,
           }
         : null,
-    take => parseInt(take)
+    (take) => parseInt(take)
   );
 }
 
@@ -199,13 +260,13 @@ function skipOptions(qry) {
   return check(
     qry,
     'skip',
-    skip =>
+    (skip) =>
       skip >= 0
         ? {
-            skip
+            skip,
           }
         : null,
-    skip => parseInt(skip)
+    (skip) => parseInt(skip)
   );
 }
 
@@ -213,24 +274,21 @@ function totalCountOptions(qry) {
   return check(
     qry,
     'requireTotalCount',
-    requireTotalCount =>
-      requireTotalCount
-        ? {
-            requireTotalCount
-          }
-        : null,
-    requireTotalCount => representsTrue(requireTotalCount)
+    (requireTotalCount) => ({
+      requireTotalCount,
+    }),
+    (requireTotalCount) => representsTrue(requireTotalCount)
   );
 }
 
 function sortOptions(qry) {
-  return check(qry, 'sort', sort => {
+  return check(qry, 'sort', (sort) => {
     const sortOptions = parseAndFix(sort);
     if (Array.isArray(sortOptions) && sortOptions.length > 0) {
       const vr = validateAll(sortOptions, sortOptionsChecker);
       if (vr.valid)
         return {
-          sort: sortOptions
+          sort: sortOptions,
         };
       else
         throw new Error(
@@ -244,7 +302,7 @@ function groupOptions(qry) {
   return check(
     qry,
     'group',
-    group => {
+    (group) => {
       const groupOptions = parseAndFix(group);
       if (Array.isArray(groupOptions)) {
         if (groupOptions.length > 0) {
@@ -252,27 +310,24 @@ function groupOptions(qry) {
           if (vr.valid)
             return mergeResults([
               wrapLoadOptions({
-                group: groupOptions
+                group: groupOptions,
               }),
               check(
                 qry,
                 'requireGroupCount',
-                requireGroupCount =>
-                  requireGroupCount
-                    ? {
-                        requireGroupCount
-                      }
-                    : null,
-                requireGroupCount => representsTrue(requireGroupCount)
+                (requireGroupCount) => ({
+                  requireGroupCount,
+                }),
+                (requireGroupCount) => representsTrue(requireGroupCount)
               ),
-              check(qry, 'groupSummary', groupSummary => {
+              check(qry, 'groupSummary', (groupSummary) => {
                 const gsOptions = parseAndFix(groupSummary);
                 if (Array.isArray(gsOptions)) {
                   if (gsOptions.length > 0) {
                     const vr = validateAll(gsOptions, summaryOptionsChecker);
                     if (vr.valid)
                       return {
-                        groupSummary: gsOptions
+                        groupSummary: gsOptions,
                       };
                     else
                       throw new Error(
@@ -282,7 +337,7 @@ function groupOptions(qry) {
                       );
                   } else return {}; // ignore empty array
                 } else return null;
-              })
+              }),
             ]);
           else
             throw new Error(
@@ -293,19 +348,19 @@ function groupOptions(qry) {
     },
     undefined,
     undefined,
-    o => o /* deactivate wrapper for the result */
+    (o) => o /* deactivate wrapper for the result */
   );
 }
 
 function totalSummaryOptions(qry) {
-  return check(qry, 'totalSummary', totalSummary => {
+  return check(qry, 'totalSummary', (totalSummary) => {
     const tsOptions = parseAndFix(totalSummary);
     if (Array.isArray(tsOptions)) {
       if (tsOptions.length > 0) {
         const vr = validateAll(tsOptions, summaryOptionsChecker);
         if (vr.valid)
           return {
-            totalSummary: tsOptions
+            totalSummary: tsOptions,
           };
         else
           throw new Error(
@@ -319,11 +374,11 @@ function totalSummaryOptions(qry) {
 }
 
 function filterOptions(qry) {
-  return check(qry, 'filter', filter => {
-    const filterOptions = parseAndFix(filter);
+  return check(qry, 'filter', (filter) => {
+    const filterOptions = parseAndFix(filter, true);
     if (typeof filterOptions === 'string' || Array.isArray(filterOptions))
       return {
-        filter: filterOptions
+        filter: filterOptions,
       };
     else return null;
   });
@@ -338,7 +393,7 @@ function searchOptions(qry) {
         return {
           searchExpr: se,
           searchOperation: so,
-          searchValue: sv
+          searchValue: sv,
         };
       else return null;
     }
@@ -346,17 +401,17 @@ function searchOptions(qry) {
 }
 
 function selectOptions(qry) {
-  return check(qry, 'select', select => {
-    const selectOptions = parseAndFix(select);
+  return check(qry, 'select', (select) => {
+    const selectOptions = parseAndFix(select, true);
     if (typeof selectOptions === 'string')
       return {
-        select: [selectOptions]
+        select: [selectOptions],
       };
     else if (Array.isArray(selectOptions)) {
       if (selectOptions.length > 0) {
         if (selectOptions.reduce((r, v) => r && typeof v === 'string'))
           return {
-            select: selectOptions
+            select: selectOptions,
           };
         else
           throw new Error(
@@ -373,12 +428,12 @@ function timezoneOptions(qry) {
   return check(
     qry,
     'tzOffset',
-    tzOffset => ({
-      timezoneOffset: parseInt(tzOffset) || 0
+    (tzOffset) => ({
+      timezoneOffset: parseInt(tzOffset) || 0,
     }),
-    v => v,
+    (v) => v,
     {
-      timezoneOffset: 0
+      timezoneOffset: 0,
     },
     wrapProcessingOptions
   );
@@ -388,13 +443,13 @@ function summaryQueryLimitOptions(qry) {
   return check(
     qry,
     'summaryQueryLimit',
-    sql =>
+    (sql) =>
       sql >= 0
         ? {
-            summaryQueryLimit: sql
+            summaryQueryLimit: sql,
           }
         : {},
-    sql => parseInt(sql),
+    (sql) => parseInt(sql),
     {},
     wrapProcessingOptions
   );
@@ -405,13 +460,13 @@ function mergeResults(results) {
     (r, v) => ({
       loadOptions: {
         ...(r.loadOptions || {}),
-        ...(v.loadOptions || {})
+        ...(v.loadOptions || {}),
       },
       processingOptions: {
         ...(r.processingOptions || {}),
-        ...(v.processingOptions || {})
+        ...(v.processingOptions || {}),
       },
-      errors: [...(r.errors || []), ...(v.errors || [])]
+      errors: [...(r.errors || []), ...(v.errors || [])],
     }),
     {}
   );
@@ -436,14 +491,28 @@ function getOptions(qry, schema) {
       searchOptions,
       selectOptions,
       timezoneOptions,
-      summaryQueryLimitOptions
-    ].map(f => f(fixedQry))
+      summaryQueryLimitOptions,
+    ].map((f) => f(fixedQry))
   );
 }
 
 module.exports = {
   getOptions,
   private: {
-    fixFilterAndSearch
-  }
+    fixFilterAndSearch,
+    validateAll,
+    check,
+    takeOptions,
+    skipOptions,
+    totalCountOptions,
+    sortOptions,
+    groupOptions,
+    totalSummaryOptions,
+    filterOptions,
+    searchOptions,
+    selectOptions,
+    sortOptionsChecker,
+    groupOptionsChecker,
+    summaryOptionsChecker,
+  },
 };
