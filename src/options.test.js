@@ -197,6 +197,28 @@ suite('selectOptions', function () {
     const result = selectOptions({ select: 'something' });
     expect(result).to.eql({ loadOptions: { select: ['something'] } });
   });
+
+  test('valid array', function () {
+    const result = selectOptions({ select: ['something', 'other'] });
+    expect(result).to.eql({ loadOptions: { select: ['something', 'other'] } });
+  });
+
+  test('array with invalid content', function () {
+    const result = selectOptions({ select: ['something', 'other', 42] });
+    expect(result.errors[0].message).to.match(
+      /Select array parameter has invalid content/
+    );
+  });
+
+  test('empty array', function () {
+    const result = selectOptions({ select: [] });
+    expect(result).to.eql({ loadOptions: {} });
+  });
+
+  test('type other than string and array', function () {
+    const result = selectOptions({ select: 42 });
+    expect(result).to.eql({ errors: [`Invalid 'select': 42`] });
+  });
 });
 
 suite('groupOptions', function () {
