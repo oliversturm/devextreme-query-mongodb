@@ -1,5 +1,17 @@
-const valueFixers = require('value-fixers');
+//const valueFixers = require('value-fixers');
 const yup = require('yup');
+
+var regexBool = /(true|false)/i;
+
+const asBool = (v) => {
+  let match;
+  if (typeof v === 'string' && (match = v.match(regexBool))) {
+    return {
+      true: true,
+      false: false,
+    }[match[0].toLowerCase()];
+  } else return !!v;
+};
 
 function fixFilterAndSearch(schema) {
   // currently only for int and float
@@ -7,6 +19,7 @@ function fixFilterAndSearch(schema) {
   // {
   //   fieldName1: 'int',
   //   fieldName2: 'float',
+  //   fieldName3: 'datetime'
   // }
 
   const operators = ['=', '<>', '>', '>=', '<', '<='];
@@ -15,6 +28,8 @@ function fixFilterAndSearch(schema) {
     return {
       int: parseInt,
       float: parseFloat,
+      datetime: (v) => new Date(v),
+      bool: asBool,
     }[type](value);
   }
 
@@ -51,7 +66,7 @@ function fixFilterAndSearch(schema) {
 
   return (qry) => {
     if (!qry) return qry;
-    const fixedFilter = fixFilter(qry.filter);
+    const fixedFilter = fixFilter(parse(qry.filter));
     const fixedSearchValue = fixSearch(
       qry.searchExpr,
       qry.searchOperation,
@@ -178,7 +193,7 @@ function validateAll(list, checker, short = true) {
   );
 }
 
-function parseAndFix(arg, canBeString = false) {
+function parse(arg, canBeString = false) {
   let ob = arg;
   if (typeof arg === 'string') {
     try {
@@ -188,10 +203,7 @@ function parseAndFix(arg, canBeString = false) {
       return arg;
     }
   }
-  return valueFixers.fixObject(
-    ob,
-    valueFixers.defaultFixers.concat(valueFixers.fixBool)
-  );
+  return ob;
 }
 
 function representsTrue(val) {
@@ -283,7 +295,7 @@ function totalCountOptions(qry) {
 
 function sortOptions(qry) {
   return check(qry, 'sort', (sort) => {
-    const sortOptions = parseAndFix(sort);
+    const sortOptions = parse(sort);
     if (Array.isArray(sortOptions) && sortOptions.length > 0) {
       const vr = validateAll(sortOptions, sortOptionsChecker);
       if (vr.valid)
@@ -303,7 +315,7 @@ function groupOptions(qry) {
     qry,
     'group',
     (group) => {
-      const groupOptions = parseAndFix(group);
+      const groupOptions = parse(group);
       if (Array.isArray(groupOptions)) {
         if (groupOptions.length > 0) {
           const vr = validateAll(groupOptions, groupOptionsChecker);
@@ -321,7 +333,7 @@ function groupOptions(qry) {
                 (requireGroupCount) => representsTrue(requireGroupCount)
               ),
               check(qry, 'groupSummary', (groupSummary) => {
-                const gsOptions = parseAndFix(groupSummary);
+                const gsOptions = parse(groupSummary);
                 if (Array.isArray(gsOptions)) {
                   if (gsOptions.length > 0) {
                     const vr = validateAll(gsOptions, summaryOptionsChecker);
@@ -354,7 +366,7 @@ function groupOptions(qry) {
 
 function totalSummaryOptions(qry) {
   return check(qry, 'totalSummary', (totalSummary) => {
-    const tsOptions = parseAndFix(totalSummary);
+    const tsOptions = parse(totalSummary);
     if (Array.isArray(tsOptions)) {
       if (tsOptions.length > 0) {
         const vr = validateAll(tsOptions, summaryOptionsChecker);
@@ -375,7 +387,7 @@ function totalSummaryOptions(qry) {
 
 function filterOptions(qry) {
   return check(qry, 'filter', (filter) => {
-    const filterOptions = parseAndFix(filter, true);
+    const filterOptions = parse(filter, true);
     if (typeof filterOptions === 'string' || Array.isArray(filterOptions))
       return {
         filter: filterOptions,
@@ -402,7 +414,7 @@ function searchOptions(qry) {
 
 function selectOptions(qry) {
   return check(qry, 'select', (select) => {
-    const selectOptions = parseAndFix(select, true);
+    const selectOptions = parse(select, true);
     if (typeof selectOptions === 'string')
       return {
         select: [selectOptions],
@@ -528,6 +540,6 @@ module.exports = {
     sortOptionsChecker,
     groupOptionsChecker,
     summaryOptionsChecker,
-    caseInsensitiveRegexOptions,
+    asBool,
   },
 };
