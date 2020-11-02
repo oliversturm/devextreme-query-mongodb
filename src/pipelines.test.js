@@ -373,18 +373,6 @@ suite('pipelines', function () {
         field: { $regex: 'regex', $options: 'i' },
       });
     });
-
-    // test('016', function () {
-    //   assert.deepEqual(constructRegex('field', 016, true), {
-    //     field: { $regex: 14, $options: 'i' },
-    //   })
-    // })
-
-    // test('0168', function () {
-    //   assert.deepEqual(constructRegex('field', 0168, true), {
-    //     field: { $regex: '0168', $options: 'i' },
-    //   })
-    // })
   });
 
   suite('parseFilter', function () {
@@ -535,16 +523,6 @@ suite('pipelines', function () {
         ['thing', 'contains', 'val'],
         {
           thing: { $regex: 'val', $options: 'i' },
-        },
-        ['thing']
-      );
-    });
-
-    test('contains number with 0 prefix', function () {
-      testParseFilter(
-        ['thing', 'contains', '0168'],
-        {
-          thing: { $regex: '0168', $options: 'i' },
         },
         ['thing']
       );

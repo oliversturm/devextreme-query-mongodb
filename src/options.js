@@ -14,7 +14,6 @@ const asBool = (v) => {
 };
 
 function fixFilterAndSearch(schema) {
-  // currently only for int and float
   // schema can be
   // {
   //   fieldName1: 'int',
@@ -294,20 +293,30 @@ function totalCountOptions(qry) {
 }
 
 function sortOptions(qry) {
-  return check(qry, 'sort', (sort) => {
-    const sortOptions = parse(sort);
-    if (Array.isArray(sortOptions) && sortOptions.length > 0) {
-      const vr = validateAll(sortOptions, sortOptionsChecker);
-      if (vr.valid)
-        return {
-          sort: sortOptions,
-        };
-      else
-        throw new Error(
-          `Sort parameter validation errors: ${JSON.stringify(vr.errors)}`
-        );
-    } else return null;
-  });
+  return check(
+    qry,
+    'sort',
+    (sort) => {
+      const sortOptions = parse(sort);
+      if (Array.isArray(sortOptions) && sortOptions.length > 0) {
+        const vr = validateAll(sortOptions, sortOptionsChecker);
+        if (vr.valid)
+          return {
+            sort: sortOptions,
+          };
+        else
+          throw new Error(
+            `Sort parameter validation errors: ${JSON.stringify(vr.errors)}`
+          );
+      } else return null;
+    },
+    (sort) => {
+      const sortOptions = parse(sort);
+      if (Array.isArray(sortOptions)) {
+        return sortOptions.map((s) => ({ ...s, desc: representsTrue(s.desc) }));
+      } else return sort;
+    }
+  );
 }
 
 function groupOptions(qry) {
@@ -358,7 +367,15 @@ function groupOptions(qry) {
         } else return {}; // ignore empty array
       } else return null;
     },
-    undefined,
+    (group) => {
+      const groupOptions = parse(group);
+      if (Array.isArray(groupOptions)) {
+        return groupOptions.map((g) => ({
+          ...g,
+          isExpanded: representsTrue(g.isExpanded),
+        }));
+      } else return group;
+    },
     undefined,
     (o) => o /* deactivate wrapper for the result */
   );

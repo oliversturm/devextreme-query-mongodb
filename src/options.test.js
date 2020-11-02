@@ -487,7 +487,7 @@ suite('groupOptions', function () {
     });
     expect(result).to.eql({
       errors: [],
-      loadOptions: { group: [{ selector: 'x' }] },
+      loadOptions: { group: [{ isExpanded: false, selector: 'x' }] },
       processingOptions: {},
     });
   });
@@ -499,7 +499,7 @@ suite('groupOptions', function () {
     });
     expect(result).to.eql({
       errors: [`Invalid 'groupSummary': [object Object]`],
-      loadOptions: { group: [{ selector: 'x' }] },
+      loadOptions: { group: [{ isExpanded: false, selector: 'x' }] },
       processingOptions: {},
     });
   });
@@ -947,7 +947,8 @@ suite('getOptions', function () {
           filter: [['date2', '=', new Date(Date.parse('2017-07-13'))]],
         },
         processingOptions: {},
-      }
+      },
+      { date2: 'datetime' }
     );
   });
 
