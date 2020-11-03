@@ -65,6 +65,73 @@ function testQueryValues(
 }
 
 suite('query-values', function () {
+  suite('#aggregateOptions', function () {
+    // these tests are only to make sure that the aggregate setting
+    // are passed through correctly to the aggregate calls
+    test('collation', function (tdone) {
+      testQueryValues(
+        tdone,
+        { sort: [{ selector: 'string' }], requireTotalCount: true },
+        function (res) {
+          expect(res.totalCount, 'totalCount').to.eql(2);
+
+          expect(res.data, 'res.data').to.be.instanceof(Array);
+          expect(res.data, 'list length').to.have.lengthOf(2);
+          expect(res.data[0].string).to.eql('something');
+          expect(res.data[1].string).to.eql('Something');
+        },
+        function (collection) {
+          return [
+            collection.insertOne({
+              string: 'something',
+            }),
+            collection.insertOne({
+              string: 'Something',
+            }),
+          ];
+        },
+        {
+          aggregateOptions: {
+            collation: { locale: 'en', caseFirst: 'lower' },
+          },
+        }
+      );
+    });
+
+    test('collation dynamic', function (tdone) {
+      testQueryValues(
+        tdone,
+        { sort: [{ selector: 'string' }], requireTotalCount: true },
+        function (res) {
+          expect(res.totalCount, 'totalCount').to.eql(2);
+
+          expect(res.data, 'res.data').to.be.instanceof(Array);
+          expect(res.data, 'list length').to.have.lengthOf(2);
+          expect(res.data[0].string).to.eql('something');
+          expect(res.data[1].string).to.eql('Something');
+        },
+        function (collection) {
+          return [
+            collection.insertOne({
+              string: 'something',
+            }),
+            collection.insertOne({
+              string: 'Something',
+            }),
+          ];
+        },
+        {
+          dynamicAggregateOptions: (identifier /*, pipeline,collection*/) =>
+            identifier === 'mainQueryResult'
+              ? {
+                  collation: { locale: 'en', caseFirst: 'lower' },
+                }
+              : {},
+        }
+      );
+    });
+  });
+
   suite('#entitiesQuery.values', function () {
     test('list should retrieve all entities', function (tdone) {
       testQueryValues(
