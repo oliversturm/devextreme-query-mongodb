@@ -20,9 +20,21 @@ const {
 } = require('./utils');
 
 function createContext(contextOptions, loadOptions) {
+  const aggregateCall = (collection, pipeline, identifier) =>
+    ((aggregateOptions) => collection.aggregate(pipeline, aggregateOptions))(
+      contextOptions.dynamicAggregateOptions
+        ? filterAggregateOptions(
+            contextOptions.dynamicAggregateOptions(
+              identifier,
+              pipeline,
+              collection
+            )
+          )
+        : contextOptions.aggregateOptions
+    );
+
   const getCount = (collection, pipeline) =>
-    collection
-      .aggregate(pipeline)
+    aggregateCall(collection, pipeline, 'getCount')
       .toArray()
       // Strangely, the pipeline returns an empty array when the "match" part
       // filters out all rows - I would expect to still see the "count" stage
@@ -70,8 +82,9 @@ function createContext(contextOptions, loadOptions) {
     skipTakePipeline,
     matchPipeline
   ) =>
-    collection
-      .aggregate([
+    aggregateCall(
+      collection,
+      [
         ...contextOptions.preProcessingPipeline,
         // sort pipeline first, apparently that enables it to use indexes
         ...sortPipeline,
@@ -90,7 +103,9 @@ function createContext(contextOptions, loadOptions) {
           contextOptions
         ),
         ...skipTakePipeline,
-      ])
+      ],
+      'queryGroupData'
+    )
       .toArray()
       .then((r) =>
         includeDataItems
@@ -206,8 +221,9 @@ function createContext(contextOptions, loadOptions) {
       summariesRequired
         ? groupData.map((item) =>
             runSummaryQuery(() =>
-              collection
-                .aggregate([
+              aggregateCall(
+                collection,
+                [
                   ...contextOptions.preProcessingPipeline,
                   ...filterPipelineDetails.pipeline,
                   ...groupKeyPipeline,
@@ -218,8 +234,9 @@ function createContext(contextOptions, loadOptions) {
                     contextOptions
                   ),
                   ...summaryPipeline,
-                ])
-                .toArray()
+                ],
+                'augmentWithSummaries'
+              ).toArray()
             ).then((r) =>
               populateSummaryResults(item, loadOptions.groupSummary, r[0])
             )
@@ -250,6 +267,36 @@ function createContext(contextOptions, loadOptions) {
       /* eslint-enable promise/no-nesting */
     );
   };
+
+  const totalCount = (collection, completeFilterPipelineDetails) =>
+    loadOptions.requireTotalCount || loadOptions.totalSummary
+      ? [
+          getCount(collection, [
+            ...contextOptions.preProcessingPipeline,
+            ...completeFilterPipelineDetails.pipeline,
+            ...createCountPipeline(contextOptions),
+          ]).then((r) => ({ totalCount: r })),
+        ]
+      : [];
+
+  const summary = (collection, completeFilterPipelineDetails) => (
+    resultObject
+  ) =>
+    resultObject.totalCount > 0 && loadOptions.totalSummary
+      ? aggregateCall(
+          collection,
+          [
+            ...contextOptions.preProcessingPipeline,
+            ...completeFilterPipelineDetails.pipeline,
+            ...createSummaryPipeline(loadOptions.totalSummary, contextOptions),
+          ],
+          'summary'
+        )
+          .toArray()
+          .then((r) =>
+            populateSummaryResults(resultObject, loadOptions.totalSummary, r[0])
+          )
+      : Promise.resolve(resultObject);
 
   const queryGroups = (collection) => {
     const completeFilterPipelineDetails = createCompleteFilterPipeline(
@@ -305,41 +352,13 @@ function createContext(contextOptions, loadOptions) {
       } else return [];
     };
 
-    const totalCount = () =>
-      loadOptions.requireTotalCount || loadOptions.totalSummary
-        ? [
-            getCount(collection, [
-              ...contextOptions.preProcessingPipeline,
-              ...completeFilterPipelineDetails.pipeline,
-              ...createCountPipeline(contextOptions),
-            ]).then((r) => ({ totalCount: r })),
-          ]
-        : [];
-
-    const summary = (resultObject) =>
-      resultObject.totalCount > 0 && loadOptions.totalSummary
-        ? collection
-            .aggregate([
-              ...contextOptions.preProcessingPipeline,
-              ...completeFilterPipelineDetails.pipeline,
-              ...createSummaryPipeline(
-                loadOptions.totalSummary,
-                contextOptions
-              ),
-            ])
-            .toArray()
-            .then((r) =>
-              populateSummaryResults(
-                resultObject,
-                loadOptions.totalSummary,
-                r[0]
-              )
-            )
-        : Promise.resolve(resultObject);
-
-    return Promise.all([mainQueryResult(), ...groupCount(), ...totalCount()])
+    return Promise.all([
+      mainQueryResult(),
+      ...groupCount(),
+      ...totalCount(collection, completeFilterPipelineDetails),
+    ])
       .then(merge)
-      .then(summary);
+      .then(summary(collection, completeFilterPipelineDetails));
   };
 
   const querySimple = (collection) => {
@@ -366,62 +385,55 @@ function createContext(contextOptions, loadOptions) {
     );
 
     const mainQueryResult = () =>
-      collection
-        .aggregate([
+      aggregateCall(
+        collection,
+        [
           ...contextOptions.preProcessingPipeline,
           ...completeFilterPipelineDetails.pipeline,
           ...sortPipeline,
           ...skipTakePipeline,
           ...selectPipeline,
           ...removeNestedFieldsPipeline,
-        ])
+        ],
+        'mainQueryResult'
+      )
         .toArray()
         .then((r) => r.map(replaceId))
         .then((r) => ({ data: r }));
 
-    // FIXME this function is exactly the same as the one in the group query execution path
-    const totalCount = () =>
-      loadOptions.requireTotalCount || loadOptions.totalSummary
-        ? [
-            getCount(collection, [
-              ...contextOptions.preProcessingPipeline,
-              ...completeFilterPipelineDetails.pipeline,
-              ...createCountPipeline(contextOptions),
-            ]).then((r) => ({ totalCount: r })),
-          ]
-        : [];
-
-    // FIXME and again, exactly the same as the group one
-    const summary = (resultObject) =>
-      resultObject.totalCount > 0 && loadOptions.totalSummary
-        ? collection
-            .aggregate([
-              ...contextOptions.preProcessingPipeline,
-              ...completeFilterPipelineDetails.pipeline,
-              ...createSummaryPipeline(
-                loadOptions.totalSummary,
-                contextOptions
-              ),
-            ])
-            .toArray()
-            .then((r) =>
-              populateSummaryResults(
-                resultObject,
-                loadOptions.totalSummary,
-                r[0]
-              )
-            )
-        : Promise.resolve(resultObject);
-
-    return Promise.all([mainQueryResult(), ...totalCount()])
+    return Promise.all([
+      mainQueryResult(),
+      ...totalCount(collection, completeFilterPipelineDetails),
+    ])
       .then(merge)
-      .then(summary);
+      .then(summary(collection, completeFilterPipelineDetails));
   };
 
   return { queryGroups, querySimple };
 }
 
+function filterAggregateOptions(proposedOptions) {
+  const acceptableAggregateOptionNames = [
+    'allowDiskUse',
+    'maxTimeMS',
+    'readConcern',
+    'collation',
+    'hint',
+    'comment',
+  ];
+  return Object.keys(proposedOptions).reduce(
+    (r, v) =>
+      acceptableAggregateOptionNames.includes(v)
+        ? { ...r, [v]: proposedOptions[v] }
+        : r,
+    {}
+  );
+}
+
 function query(collection, loadOptions = {}, options = {}) {
+  const proposedAggregateOptions = options.aggregateOptions;
+  delete options.aggregateOptions;
+
   const standardContextOptions = {
     replaceIds: true,
     summaryQueryLimit: 100,
@@ -432,6 +444,12 @@ function query(collection, loadOptions = {}, options = {}) {
     caseInsensitiveRegex: true,
   };
   const contextOptions = Object.assign(standardContextOptions, options);
+
+  if (!options.dynamicAggregateOptions && proposedAggregateOptions)
+    contextOptions.aggregateOptions = filterAggregateOptions(
+      proposedAggregateOptions
+    );
+
   const context = createContext(contextOptions, loadOptions);
 
   return loadOptions.group && loadOptions.group.length > 0

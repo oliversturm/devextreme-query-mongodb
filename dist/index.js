@@ -2,6 +2,8 @@
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
 var _require = require('./pipelines'),
@@ -25,8 +27,14 @@ var _require2 = require('./utils'),
     debug = _require2.debug;
 
 function createContext(contextOptions, loadOptions) {
+  var aggregateCall = function aggregateCall(collection, pipeline, identifier) {
+    return function (aggregateOptions) {
+      return collection.aggregate(pipeline, aggregateOptions);
+    }(contextOptions.dynamicAggregateOptions ? filterAggregateOptions(contextOptions.dynamicAggregateOptions(identifier, pipeline, collection)) : contextOptions.aggregateOptions);
+  };
+
   var getCount = function getCount(collection, pipeline) {
-    return collection.aggregate(pipeline).toArray().then(function (r) {
+    return aggregateCall(collection, pipeline, 'getCount').toArray().then(function (r) {
       return r.length > 0 ? r[0].count : 0;
     });
   };
@@ -82,7 +90,7 @@ function createContext(contextOptions, loadOptions) {
   };
 
   var queryGroupData = function queryGroupData(collection, desc, includeDataItems, countSeparately, itemProjection, groupKeyPipeline, sortPipeline, filterPipelineDetails, skipTakePipeline, matchPipeline) {
-    return collection.aggregate([].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(sortPipeline), _toConsumableArray(filterPipelineDetails.pipeline), _toConsumableArray(matchPipeline), _toConsumableArray(createRemoveNestedFieldsPipeline(filterPipelineDetails.nestedFields, contextOptions)), _toConsumableArray(createGroupingPipeline(desc, includeDataItems, countSeparately, groupKeyPipeline, itemProjection, contextOptions)), _toConsumableArray(skipTakePipeline))).toArray().then(function (r) {
+    return aggregateCall(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(sortPipeline), _toConsumableArray(filterPipelineDetails.pipeline), _toConsumableArray(matchPipeline), _toConsumableArray(createRemoveNestedFieldsPipeline(filterPipelineDetails.nestedFields, contextOptions)), _toConsumableArray(createGroupingPipeline(desc, includeDataItems, countSeparately, groupKeyPipeline, itemProjection, contextOptions)), _toConsumableArray(skipTakePipeline)), 'queryGroupData').toArray().then(function (r) {
       return includeDataItems ? r.map(function (i) {
         return _extends({}, i, { items: i.items.map(replaceId) });
       }) : r;
@@ -131,7 +139,7 @@ function createContext(contextOptions, loadOptions) {
     var augmentWithSummaries = function augmentWithSummaries(groupData) {
       return summariesRequired ? groupData.map(function (item) {
         return runSummaryQuery(function () {
-          return collection.aggregate([].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(filterPipelineDetails.pipeline), _toConsumableArray(groupKeyPipeline), _toConsumableArray(matchPipeline), _toConsumableArray(createMatchPipeline(createGroupFieldName(groupIndex), item.key, contextOptions)), _toConsumableArray(summaryPipeline))).toArray();
+          return aggregateCall(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(filterPipelineDetails.pipeline), _toConsumableArray(groupKeyPipeline), _toConsumableArray(matchPipeline), _toConsumableArray(createMatchPipeline(createGroupFieldName(groupIndex), item.key, contextOptions)), _toConsumableArray(summaryPipeline)), 'augmentWithSummaries').toArray();
         }).then(function (r) {
           return populateSummaryResults(item, loadOptions.groupSummary, r[0]);
         });
@@ -143,6 +151,20 @@ function createContext(contextOptions, loadOptions) {
         return groupData;
       });
     });
+  };
+
+  var totalCount = function totalCount(collection, completeFilterPipelineDetails) {
+    return loadOptions.requireTotalCount || loadOptions.totalSummary ? [getCount(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createCountPipeline(contextOptions)))).then(function (r) {
+      return { totalCount: r };
+    })] : [];
+  };
+
+  var summary = function summary(collection, completeFilterPipelineDetails) {
+    return function (resultObject) {
+      return resultObject.totalCount > 0 && loadOptions.totalSummary ? aggregateCall(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createSummaryPipeline(loadOptions.totalSummary, contextOptions))), 'summary').toArray().then(function (r) {
+        return populateSummaryResults(resultObject, loadOptions.totalSummary, r[0]);
+      }) : Promise.resolve(resultObject);
+    };
   };
 
   var queryGroups = function queryGroups(collection) {
@@ -166,19 +188,7 @@ function createContext(contextOptions, loadOptions) {
       } else return [];
     };
 
-    var totalCount = function totalCount() {
-      return loadOptions.requireTotalCount || loadOptions.totalSummary ? [getCount(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createCountPipeline(contextOptions)))).then(function (r) {
-        return { totalCount: r };
-      })] : [];
-    };
-
-    var summary = function summary(resultObject) {
-      return resultObject.totalCount > 0 && loadOptions.totalSummary ? collection.aggregate([].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createSummaryPipeline(loadOptions.totalSummary, contextOptions)))).toArray().then(function (r) {
-        return populateSummaryResults(resultObject, loadOptions.totalSummary, r[0]);
-      }) : Promise.resolve(resultObject);
-    };
-
-    return Promise.all([mainQueryResult()].concat(_toConsumableArray(groupCount()), _toConsumableArray(totalCount()))).then(merge).then(summary);
+    return Promise.all([mainQueryResult()].concat(_toConsumableArray(groupCount()), _toConsumableArray(totalCount(collection, completeFilterPipelineDetails)))).then(merge).then(summary(collection, completeFilterPipelineDetails));
   };
 
   var querySimple = function querySimple(collection) {
@@ -189,34 +199,32 @@ function createContext(contextOptions, loadOptions) {
     var removeNestedFieldsPipeline = createRemoveNestedFieldsPipeline(completeFilterPipelineDetails.nestedFields, contextOptions);
 
     var mainQueryResult = function mainQueryResult() {
-      return collection.aggregate([].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(sortPipeline), _toConsumableArray(skipTakePipeline), _toConsumableArray(selectPipeline), _toConsumableArray(removeNestedFieldsPipeline))).toArray().then(function (r) {
+      return aggregateCall(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(sortPipeline), _toConsumableArray(skipTakePipeline), _toConsumableArray(selectPipeline), _toConsumableArray(removeNestedFieldsPipeline)), 'mainQueryResult').toArray().then(function (r) {
         return r.map(replaceId);
       }).then(function (r) {
         return { data: r };
       });
     };
 
-    var totalCount = function totalCount() {
-      return loadOptions.requireTotalCount || loadOptions.totalSummary ? [getCount(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createCountPipeline(contextOptions)))).then(function (r) {
-        return { totalCount: r };
-      })] : [];
-    };
-
-    var summary = function summary(resultObject) {
-      return resultObject.totalCount > 0 && loadOptions.totalSummary ? collection.aggregate([].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createSummaryPipeline(loadOptions.totalSummary, contextOptions)))).toArray().then(function (r) {
-        return populateSummaryResults(resultObject, loadOptions.totalSummary, r[0]);
-      }) : Promise.resolve(resultObject);
-    };
-
-    return Promise.all([mainQueryResult()].concat(_toConsumableArray(totalCount()))).then(merge).then(summary);
+    return Promise.all([mainQueryResult()].concat(_toConsumableArray(totalCount(collection, completeFilterPipelineDetails)))).then(merge).then(summary(collection, completeFilterPipelineDetails));
   };
 
   return { queryGroups: queryGroups, querySimple: querySimple };
 }
 
+function filterAggregateOptions(proposedOptions) {
+  var acceptableAggregateOptionNames = ['allowDiskUse', 'maxTimeMS', 'readConcern', 'collation', 'hint', 'comment'];
+  return Object.keys(proposedOptions).reduce(function (r, v) {
+    return acceptableAggregateOptionNames.includes(v) ? _extends({}, r, _defineProperty({}, v, proposedOptions[v])) : r;
+  }, {});
+}
+
 function query(collection) {
   var loadOptions = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
   var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+
+  var proposedAggregateOptions = options.aggregateOptions;
+  delete options.aggregateOptions;
 
   var standardContextOptions = {
     replaceIds: true,
@@ -227,6 +235,9 @@ function query(collection) {
     caseInsensitiveRegex: true
   };
   var contextOptions = Object.assign(standardContextOptions, options);
+
+  if (!options.dynamicAggregateOptions && proposedAggregateOptions) contextOptions.aggregateOptions = filterAggregateOptions(proposedAggregateOptions);
+
   var context = createContext(contextOptions, loadOptions);
 
   return loadOptions.group && loadOptions.group.length > 0 ? context.queryGroups(collection) : context.querySimple(collection);
