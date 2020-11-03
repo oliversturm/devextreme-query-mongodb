@@ -4,8 +4,19 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
-var valueFixers = require('value-fixers');
 var yup = require('yup');
+
+var regexBool = /(true|false)/i;
+
+var asBool = function asBool(v) {
+  var match = void 0;
+  if (typeof v === 'string' && (match = v.match(regexBool))) {
+    return {
+      true: true,
+      false: false
+    }[match[0].toLowerCase()];
+  } else return !!v;
+};
 
 function fixFilterAndSearch(schema) {
 
@@ -14,7 +25,11 @@ function fixFilterAndSearch(schema) {
   function fixValue(type, value) {
     return {
       int: parseInt,
-      float: parseFloat
+      float: parseFloat,
+      datetime: function datetime(v) {
+        return new Date(v);
+      },
+      bool: asBool
     }[type](value);
   }
 
@@ -35,7 +50,7 @@ function fixFilterAndSearch(schema) {
 
   return function (qry) {
     if (!qry) return qry;
-    var fixedFilter = fixFilter(qry.filter);
+    var fixedFilter = fixFilter(parse(qry.filter));
     var fixedSearchValue = fixSearch(qry.searchExpr, qry.searchOperation, qry.searchValue);
 
     return Object.assign({}, qry, fixedFilter ? {
@@ -116,7 +131,7 @@ function validateAll(list, checker) {
   }, { valid: true, errors: [] });
 }
 
-function parseAndFix(arg) {
+function parse(arg) {
   var canBeString = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 
   var ob = arg;
@@ -128,7 +143,7 @@ function parseAndFix(arg) {
       return arg;
     }
   }
-  return valueFixers.fixObject(ob, valueFixers.defaultFixers.concat(valueFixers.fixBool));
+  return ob;
 }
 
 function representsTrue(val) {
@@ -211,19 +226,26 @@ function totalCountOptions(qry) {
 
 function sortOptions(qry) {
   return check(qry, 'sort', function (sort) {
-    var sortOptions = parseAndFix(sort);
+    var sortOptions = parse(sort);
     if (Array.isArray(sortOptions) && sortOptions.length > 0) {
       var vr = validateAll(sortOptions, sortOptionsChecker);
       if (vr.valid) return {
         sort: sortOptions
       };else throw new Error('Sort parameter validation errors: ' + JSON.stringify(vr.errors));
     } else return null;
+  }, function (sort) {
+    var sortOptions = parse(sort);
+    if (Array.isArray(sortOptions)) {
+      return sortOptions.map(function (s) {
+        return _extends({}, s, { desc: representsTrue(s.desc) });
+      });
+    } else return sort;
   });
 }
 
 function groupOptions(qry) {
   return check(qry, 'group', function (group) {
-    var groupOptions = parseAndFix(group);
+    var groupOptions = parse(group);
     if (Array.isArray(groupOptions)) {
       if (groupOptions.length > 0) {
         var vr = validateAll(groupOptions, groupOptionsChecker);
@@ -236,7 +258,7 @@ function groupOptions(qry) {
         }, function (requireGroupCount) {
           return representsTrue(requireGroupCount);
         }), check(qry, 'groupSummary', function (groupSummary) {
-          var gsOptions = parseAndFix(groupSummary);
+          var gsOptions = parse(groupSummary);
           if (Array.isArray(gsOptions)) {
             if (gsOptions.length > 0) {
               var _vr = validateAll(gsOptions, summaryOptionsChecker);
@@ -248,14 +270,23 @@ function groupOptions(qry) {
         })]);else throw new Error('Group parameter validation errors: ' + JSON.stringify(vr.errors));
       } else return {};
     } else return null;
-  }, undefined, undefined, function (o) {
+  }, function (group) {
+    var groupOptions = parse(group);
+    if (Array.isArray(groupOptions)) {
+      return groupOptions.map(function (g) {
+        return _extends({}, g, {
+          isExpanded: representsTrue(g.isExpanded)
+        });
+      });
+    } else return group;
+  }, undefined, function (o) {
     return o;
   });
 }
 
 function totalSummaryOptions(qry) {
   return check(qry, 'totalSummary', function (totalSummary) {
-    var tsOptions = parseAndFix(totalSummary);
+    var tsOptions = parse(totalSummary);
     if (Array.isArray(tsOptions)) {
       if (tsOptions.length > 0) {
         var vr = validateAll(tsOptions, summaryOptionsChecker);
@@ -269,7 +300,7 @@ function totalSummaryOptions(qry) {
 
 function filterOptions(qry) {
   return check(qry, 'filter', function (filter) {
-    var filterOptions = parseAndFix(filter, true);
+    var filterOptions = parse(filter, true);
     if (typeof filterOptions === 'string' || Array.isArray(filterOptions)) return {
       filter: filterOptions
     };else return null;
@@ -288,7 +319,7 @@ function searchOptions(qry) {
 
 function selectOptions(qry) {
   return check(qry, 'select', function (select) {
-    var selectOptions = parseAndFix(select, true);
+    var selectOptions = parse(select, true);
     if (typeof selectOptions === 'string') return {
       select: [selectOptions]
     };else if (Array.isArray(selectOptions)) {
@@ -373,6 +404,6 @@ module.exports = {
     sortOptionsChecker: sortOptionsChecker,
     groupOptionsChecker: groupOptionsChecker,
     summaryOptionsChecker: summaryOptionsChecker,
-    caseInsensitiveRegexOptions: caseInsensitiveRegexOptions
+    asBool: asBool
   }
 };

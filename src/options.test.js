@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-expressions */
 /* global suite, test */
 
 const chai = require('chai');
@@ -22,7 +23,7 @@ const {
     sortOptionsChecker,
     groupOptionsChecker,
     summaryOptionsChecker,
-    caseInsensitiveRegexOptions,
+    asBool,
   },
 } = require('./options');
 
@@ -33,6 +34,40 @@ function testOptions(queryString, expectedResult, schema) {
 
   expect(result).to.eql(expectedResult);
 }
+
+suite('asBool', function () {
+  test('true', function () {
+    expect(asBool(true)).to.be.true;
+  });
+
+  test('false', function () {
+    expect(asBool(false)).to.be.false;
+  });
+
+  test('true string', function () {
+    expect(asBool('TrUe')).to.be.true;
+  });
+
+  test('false string', function () {
+    expect(asBool('FaLsE')).to.be.false;
+  });
+
+  test('thruthy number', function () {
+    expect(asBool(7)).to.be.true;
+  });
+
+  test('falsy number', function () {
+    expect(asBool(0)).to.be.false;
+  });
+
+  test('thruthy string', function () {
+    expect(asBool('something')).to.be.true;
+  });
+
+  test('falsy string', function () {
+    expect(asBool('')).to.be.false;
+  });
+});
 
 suite('summaryOptionsChecker', function () {
   test('valid', function () {
@@ -452,7 +487,7 @@ suite('groupOptions', function () {
     });
     expect(result).to.eql({
       errors: [],
-      loadOptions: { group: [{ selector: 'x' }] },
+      loadOptions: { group: [{ isExpanded: false, selector: 'x' }] },
       processingOptions: {},
     });
   });
@@ -464,7 +499,7 @@ suite('groupOptions', function () {
     });
     expect(result).to.eql({
       errors: [`Invalid 'groupSummary': [object Object]`],
-      loadOptions: { group: [{ selector: 'x' }] },
+      loadOptions: { group: [{ isExpanded: false, selector: 'x' }] },
       processingOptions: {},
     });
   });
@@ -693,6 +728,84 @@ suite('getOptions', function () {
     });
   });
 
+  test('contains 3 digits', function () {
+    testOptions(
+      'filter%5B0%5D%5B0%5D=field&filter%5B0%5D%5B1%5D=contains&filter%5B0%5D%5B2%5D=234',
+      {
+        errors: [],
+        loadOptions: {
+          filter: [['field', 'contains', '234']],
+        },
+        processingOptions: {},
+      }
+    );
+  });
+
+  test('contains 4 digits', function () {
+    testOptions(
+      'filter%5B0%5D%5B0%5D=field&filter%5B0%5D%5B1%5D=contains&filter%5B0%5D%5B2%5D=2345',
+      {
+        errors: [],
+        loadOptions: {
+          filter: [['field', 'contains', '2345']],
+        },
+        processingOptions: {},
+      }
+    );
+  });
+
+  test('contains 4 digits with dashes', function () {
+    testOptions(
+      'filter%5B0%5D%5B0%5D=field&filter%5B0%5D%5B1%5D=contains&filter%5B0%5D%5B2%5D=23-45',
+      {
+        errors: [],
+        loadOptions: {
+          filter: [['field', 'contains', '23-45']],
+        },
+        processingOptions: {},
+      }
+    );
+  });
+
+  test('contains 5 digits', function () {
+    testOptions(
+      'filter%5B0%5D%5B0%5D=field&filter%5B0%5D%5B1%5D=contains&filter%5B0%5D%5B2%5D=23456',
+      {
+        errors: [],
+        loadOptions: {
+          filter: [['field', 'contains', '23456']],
+        },
+        processingOptions: {},
+      }
+    );
+  });
+
+  test('contains 3 chars', function () {
+    testOptions(
+      'filter%5B0%5D%5B0%5D=field&filter%5B0%5D%5B1%5D=contains&filter%5B0%5D%5B2%5D=abc',
+      {
+        errors: [],
+        loadOptions: {
+          filter: [['field', 'contains', 'abc']],
+        },
+        processingOptions: {},
+      }
+    );
+  });
+
+  test('contains 4 chars', function () {
+    testOptions(
+      'filter%5B0%5D%5B0%5D=field&filter%5B0%5D%5B1%5D=contains&filter%5B0%5D%5B2%5D=abcd',
+      {
+        errors: [],
+        loadOptions: {
+          filter: [['field', 'contains', 'abcd']],
+        },
+        processingOptions: {},
+      }
+    );
+  });
+
   test('sort, take and total count', function () {
     testOptions(
       'sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&take=10&requireTotalCount=true',
@@ -715,15 +828,18 @@ suite('getOptions', function () {
 
   test('issue #10 - filter works when given as array', function () {
     expect(
-      getOptions({
-        filter:
-          //        '[["dtFinished",">=","2018-08-01T16:20:30.000Z"],"and",["dtFinished","<","2018-08-01T16:20:30.000Z"]]'
-          [
-            ['dtFinished', '>=', '2018-08-01T16:20:30.000Z'],
-            'and',
-            ['dtFinished', '<', '2018-08-01T16:20:30.000Z'],
-          ],
-      })
+      getOptions(
+        {
+          filter:
+            //        '[["dtFinished",">=","2018-08-01T16:20:30.000Z"],"and",["dtFinished","<","2018-08-01T16:20:30.000Z"]]'
+            [
+              ['dtFinished', '>=', '2018-08-01T16:20:30.000Z'],
+              'and',
+              ['dtFinished', '<', '2018-08-01T16:20:30.000Z'],
+            ],
+        },
+        { dtFinished: 'datetime' }
+      )
     ).to.eql({
       errors: [],
       loadOptions: {
@@ -737,12 +853,46 @@ suite('getOptions', function () {
     });
   });
 
-  test('issue #10 - filter works when given as string', function () {
+  test('filter works with a bool value', function () {
     expect(
       getOptions({
-        filter:
-          '[["dtFinished",">=","2018-08-01T16:20:30.000Z"],"and",["dtFinished","<","2018-08-01T16:20:30.000Z"]]',
+        filter: [['done', '=', true]],
       })
+    ).to.eql({
+      errors: [],
+      loadOptions: {
+        filter: [['done', '=', true]],
+      },
+      processingOptions: {},
+    });
+  });
+
+  test('filter works with a bool value given as a string', function () {
+    expect(
+      getOptions(
+        {
+          filter: [['done', '=', 'true']],
+        },
+        { done: 'bool' }
+      )
+    ).to.eql({
+      errors: [],
+      loadOptions: {
+        filter: [['done', '=', true]],
+      },
+      processingOptions: {},
+    });
+  });
+
+  test('issue #10 - filter works when given as string', function () {
+    expect(
+      getOptions(
+        {
+          filter:
+            '[["dtFinished",">=","2018-08-01T16:20:30.000Z"],"and",["dtFinished","<","2018-08-01T16:20:30.000Z"]]',
+        },
+        { dtFinished: 'datetime' }
+      )
     ).to.eql({
       errors: [],
       loadOptions: {
@@ -797,7 +947,8 @@ suite('getOptions', function () {
           filter: [['date2', '=', new Date(Date.parse('2017-07-13'))]],
         },
         processingOptions: {},
-      }
+      },
+      { date2: 'datetime' }
     );
   });
 

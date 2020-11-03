@@ -32,7 +32,6 @@
     "node": ">=7.3"
   },
   "dependencies": {
-    "value-fixers": "^1.0.0",
     "yup": "^0.29.3"
   },
   "devDependencies": {

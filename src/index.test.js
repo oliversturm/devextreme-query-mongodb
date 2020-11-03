@@ -12,6 +12,7 @@ const TESTRECORD_COUNT = 100;
 const initClient = () =>
   MongoClient.connect('mongodb://localhost:27017/dxtqutests', {
     useNewUrlParser: true,
+    useUnifiedTopology: true,
   });
 
 function testQueryValues(

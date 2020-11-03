@@ -13,7 +13,8 @@ var TESTRECORD_COUNT = 100;
 
 var initClient = function initClient() {
   return MongoClient.connect('mongodb://localhost:27017/dxtqutests', {
-    useNewUrlParser: true
+    useNewUrlParser: true,
+    useUnifiedTopology: true
   });
 };
 
