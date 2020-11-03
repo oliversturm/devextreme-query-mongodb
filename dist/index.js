@@ -30,7 +30,7 @@ function createContext(contextOptions, loadOptions) {
   var aggregateCall = function aggregateCall(collection, pipeline, identifier) {
     return function (aggregateOptions) {
       return collection.aggregate(pipeline, aggregateOptions);
-    }(contextOptions.dynamicAggregateOptions ? contextOptions.dynamicAggregateOptions(identifier, pipeline, collection) : contextOptions.aggregateOptions);
+    }(contextOptions.dynamicAggregateOptions ? filterAggregateOptions(contextOptions.dynamicAggregateOptions(identifier, pipeline, collection)) : contextOptions.aggregateOptions);
   };
 
   var getCount = function getCount(collection, pipeline) {
@@ -212,11 +212,17 @@ function createContext(contextOptions, loadOptions) {
   return { queryGroups: queryGroups, querySimple: querySimple };
 }
 
+function filterAggregateOptions(proposedOptions) {
+  var acceptableAggregateOptionNames = ['allowDiskUse', 'maxTimeMS', 'readConcern', 'collation', 'hint', 'comment'];
+  return Object.keys(proposedOptions).reduce(function (r, v) {
+    return acceptableAggregateOptionNames.includes(v) ? _extends({}, r, _defineProperty({}, v, proposedOptions[v])) : r;
+  }, {});
+}
+
 function query(collection) {
   var loadOptions = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
   var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
 
-  var acceptableAggregateOptionNames = ['allowDiskUse', 'maxTimeMS', 'readConcern', 'collation', 'hint', 'comment'];
   var proposedAggregateOptions = options.aggregateOptions;
   delete options.aggregateOptions;
 
@@ -230,9 +236,7 @@ function query(collection) {
   };
   var contextOptions = Object.assign(standardContextOptions, options);
 
-  if (!options.dynamicAggregateOptions && proposedAggregateOptions) contextOptions.aggregateOptions = Object.keys(proposedAggregateOptions).reduce(function (r, v) {
-    return acceptableAggregateOptionNames.includes(v) ? _extends({}, r, _defineProperty({}, v, proposedAggregateOptions[v])) : r;
-  }, {});
+  if (!options.dynamicAggregateOptions && proposedAggregateOptions) contextOptions.aggregateOptions = filterAggregateOptions(proposedAggregateOptions);
 
   var context = createContext(contextOptions, loadOptions);
 

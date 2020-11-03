@@ -23,10 +23,12 @@ function createContext(contextOptions, loadOptions) {
   const aggregateCall = (collection, pipeline, identifier) =>
     ((aggregateOptions) => collection.aggregate(pipeline, aggregateOptions))(
       contextOptions.dynamicAggregateOptions
-        ? contextOptions.dynamicAggregateOptions(
-            identifier,
-            pipeline,
-            collection
+        ? filterAggregateOptions(
+            contextOptions.dynamicAggregateOptions(
+              identifier,
+              pipeline,
+              collection
+            )
           )
         : contextOptions.aggregateOptions
     );
@@ -410,7 +412,7 @@ function createContext(contextOptions, loadOptions) {
   return { queryGroups, querySimple };
 }
 
-function query(collection, loadOptions = {}, options = {}) {
+function filterAggregateOptions(proposedOptions) {
   const acceptableAggregateOptionNames = [
     'allowDiskUse',
     'maxTimeMS',
@@ -419,6 +421,16 @@ function query(collection, loadOptions = {}, options = {}) {
     'hint',
     'comment',
   ];
+  return Object.keys(proposedOptions).reduce(
+    (r, v) =>
+      acceptableAggregateOptionNames.includes(v)
+        ? { ...r, [v]: proposedOptions[v] }
+        : r,
+    {}
+  );
+}
+
+function query(collection, loadOptions = {}, options = {}) {
   const proposedAggregateOptions = options.aggregateOptions;
   delete options.aggregateOptions;
 
@@ -434,14 +446,8 @@ function query(collection, loadOptions = {}, options = {}) {
   const contextOptions = Object.assign(standardContextOptions, options);
 
   if (!options.dynamicAggregateOptions && proposedAggregateOptions)
-    contextOptions.aggregateOptions = Object.keys(
+    contextOptions.aggregateOptions = filterAggregateOptions(
       proposedAggregateOptions
-    ).reduce(
-      (r, v) =>
-        acceptableAggregateOptionNames.includes(v)
-          ? { ...r, [v]: proposedAggregateOptions[v] }
-          : r,
-      {}
     );
 
   const context = createContext(contextOptions, loadOptions);
