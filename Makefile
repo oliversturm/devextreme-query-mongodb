@@ -15,25 +15,25 @@ test:
 	@echo "the tests using npx mocha -u tdd src/index.test.js"
 	@echo "Hopefully this will be fixed with a new docker image."
 	@echo 
-	ID=`docker run -p=27017:27017 -d mongo:latest`; \
+	ID=`docker run -p=27017:27017 --rm -d mongo:latest`; \
 	   sleep 2; \
 	mocha -u tdd $(TESTS) ; \
-	docker kill $$ID
+	docker stop $$ID
 
 disttest:
 	npm run prepare
-	ID=`docker run -p=27017:27017 -d mongo:latest`; \
+	ID=`docker run -p=27017:27017 --rm -d mongo:latest`; \
 	   sleep 2; \
 	mocha -r babel-polyfill -u tdd $(DISTTESTS) ; \
-	docker kill $$ID
+	docker stop $$ID
 
 test-coverage:
 	npm run prepare
-	ID=`docker run -p=27017:27017 -d mongo:latest`; \
+	ID=`docker run -p=27017:27017 --rm -d mongo:latest`; \
 	   sleep 2; \
 	nyc --reporter=text mocha -u tdd $(TESTS) ; \
 	nyc report --reporter=lcov ; \
-	docker kill $$ID
+	docker stop $$ID
 
 publish: 
 	@echo "MAKE SURE CHANGES HAVE BEEN PUSHED TO GITHUB."
