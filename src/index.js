@@ -22,7 +22,7 @@ const {
 function createContext(contextOptions, loadOptions) {
   const getCount = (collection, pipeline) =>
     collection
-      .aggregate(pipeline)
+      .aggregate(pipeline, contextOptions.aggregateOptions)
       .toArray()
       // Strangely, the pipeline returns an empty array when the "match" part
       // filters out all rows - I would expect to still see the "count" stage
@@ -71,26 +71,29 @@ function createContext(contextOptions, loadOptions) {
     matchPipeline
   ) =>
     collection
-      .aggregate([
-        ...contextOptions.preProcessingPipeline,
-        // sort pipeline first, apparently that enables it to use indexes
-        ...sortPipeline,
-        ...filterPipelineDetails.pipeline,
-        ...matchPipeline,
-        ...createRemoveNestedFieldsPipeline(
-          filterPipelineDetails.nestedFields,
-          contextOptions
-        ),
-        ...createGroupingPipeline(
-          desc,
-          includeDataItems,
-          countSeparately,
-          groupKeyPipeline,
-          itemProjection,
-          contextOptions
-        ),
-        ...skipTakePipeline,
-      ])
+      .aggregate(
+        [
+          ...contextOptions.preProcessingPipeline,
+          // sort pipeline first, apparently that enables it to use indexes
+          ...sortPipeline,
+          ...filterPipelineDetails.pipeline,
+          ...matchPipeline,
+          ...createRemoveNestedFieldsPipeline(
+            filterPipelineDetails.nestedFields,
+            contextOptions
+          ),
+          ...createGroupingPipeline(
+            desc,
+            includeDataItems,
+            countSeparately,
+            groupKeyPipeline,
+            itemProjection,
+            contextOptions
+          ),
+          ...skipTakePipeline,
+        ],
+        contextOptions.aggregateOptions
+      )
       .toArray()
       .then((r) =>
         includeDataItems
@@ -207,18 +210,21 @@ function createContext(contextOptions, loadOptions) {
         ? groupData.map((item) =>
             runSummaryQuery(() =>
               collection
-                .aggregate([
-                  ...contextOptions.preProcessingPipeline,
-                  ...filterPipelineDetails.pipeline,
-                  ...groupKeyPipeline,
-                  ...matchPipeline,
-                  ...createMatchPipeline(
-                    createGroupFieldName(groupIndex),
-                    item.key,
-                    contextOptions
-                  ),
-                  ...summaryPipeline,
-                ])
+                .aggregate(
+                  [
+                    ...contextOptions.preProcessingPipeline,
+                    ...filterPipelineDetails.pipeline,
+                    ...groupKeyPipeline,
+                    ...matchPipeline,
+                    ...createMatchPipeline(
+                      createGroupFieldName(groupIndex),
+                      item.key,
+                      contextOptions
+                    ),
+                    ...summaryPipeline,
+                  ],
+                  contextOptions.aggregateOptions
+                )
                 .toArray()
             ).then((r) =>
               populateSummaryResults(item, loadOptions.groupSummary, r[0])
@@ -319,14 +325,17 @@ function createContext(contextOptions, loadOptions) {
     const summary = (resultObject) =>
       resultObject.totalCount > 0 && loadOptions.totalSummary
         ? collection
-            .aggregate([
-              ...contextOptions.preProcessingPipeline,
-              ...completeFilterPipelineDetails.pipeline,
-              ...createSummaryPipeline(
-                loadOptions.totalSummary,
-                contextOptions
-              ),
-            ])
+            .aggregate(
+              [
+                ...contextOptions.preProcessingPipeline,
+                ...completeFilterPipelineDetails.pipeline,
+                ...createSummaryPipeline(
+                  loadOptions.totalSummary,
+                  contextOptions
+                ),
+              ],
+              contextOptions.aggregateOptions
+            )
             .toArray()
             .then((r) =>
               populateSummaryResults(
@@ -367,14 +376,17 @@ function createContext(contextOptions, loadOptions) {
 
     const mainQueryResult = () =>
       collection
-        .aggregate([
-          ...contextOptions.preProcessingPipeline,
-          ...completeFilterPipelineDetails.pipeline,
-          ...sortPipeline,
-          ...skipTakePipeline,
-          ...selectPipeline,
-          ...removeNestedFieldsPipeline,
-        ])
+        .aggregate(
+          [
+            ...contextOptions.preProcessingPipeline,
+            ...completeFilterPipelineDetails.pipeline,
+            ...sortPipeline,
+            ...skipTakePipeline,
+            ...selectPipeline,
+            ...removeNestedFieldsPipeline,
+          ],
+          contextOptions.aggregateOptions
+        )
         .toArray()
         .then((r) => r.map(replaceId))
         .then((r) => ({ data: r }));
@@ -395,14 +407,17 @@ function createContext(contextOptions, loadOptions) {
     const summary = (resultObject) =>
       resultObject.totalCount > 0 && loadOptions.totalSummary
         ? collection
-            .aggregate([
-              ...contextOptions.preProcessingPipeline,
-              ...completeFilterPipelineDetails.pipeline,
-              ...createSummaryPipeline(
-                loadOptions.totalSummary,
-                contextOptions
-              ),
-            ])
+            .aggregate(
+              [
+                ...contextOptions.preProcessingPipeline,
+                ...completeFilterPipelineDetails.pipeline,
+                ...createSummaryPipeline(
+                  loadOptions.totalSummary,
+                  contextOptions
+                ),
+              ],
+              contextOptions.aggregateOptions
+            )
             .toArray()
             .then((r) =>
               populateSummaryResults(
@@ -422,6 +437,17 @@ function createContext(contextOptions, loadOptions) {
 }
 
 function query(collection, loadOptions = {}, options = {}) {
+  const acceptableAggregateOptionNames = [
+    'allowDiskUse',
+    'maxTimeMS',
+    'readConcern',
+    'collation',
+    'hint',
+    'comment',
+  ];
+  const proposedAggregateOptions = options.aggregateOptions;
+  delete options.aggregateOptions;
+
   const standardContextOptions = {
     replaceIds: true,
     summaryQueryLimit: 100,
@@ -432,6 +458,18 @@ function query(collection, loadOptions = {}, options = {}) {
     caseInsensitiveRegex: true,
   };
   const contextOptions = Object.assign(standardContextOptions, options);
+
+  if (proposedAggregateOptions)
+    contextOptions.aggregateOptions = Object.keys(
+      proposedAggregateOptions
+    ).reduce(
+      (r, v) =>
+        acceptableAggregateOptionNames.includes(v)
+          ? { ...r, [v]: proposedAggregateOptions[v] }
+          : r,
+      {}
+    );
+
   const context = createContext(contextOptions, loadOptions);
 
   return loadOptions.group && loadOptions.group.length > 0
