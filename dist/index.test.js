@@ -396,6 +396,26 @@ suite('query-values', function () {
       });
     });
 
+    test('prefer metadata count with filter', function (tdone) {
+      testQueryValues(tdone, {
+        filter: ['string', 'contains', '7'],
+        requireTotalCount: true
+      }, function (res) {
+        expect(res.totalCount, 'totalCount').to.eql(19);
+
+        expect(res.data, 'res.data').to.be.instanceof(Array);
+        expect(res.data, 'list length').to.have.lengthOf(19);
+      }, undefined, { preferMetadataCount: true });
+    });
+
+    test('prefer metadata count without filter', function (tdone) {
+      testQueryValues(tdone, {
+        requireTotalCount: true
+      }, function (res) {
+        expect(res.totalCount, 'totalCount').to.eql(TESTRECORD_COUNT);
+      }, undefined, { preferMetadataCount: true });
+    });
+
     test('list should filter with contains', function (tdone) {
       testQueryValues(tdone, {
         filter: ['string', 'contains', 'Item'],

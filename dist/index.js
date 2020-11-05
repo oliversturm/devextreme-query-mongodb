@@ -154,7 +154,9 @@ function createContext(contextOptions, loadOptions) {
   };
 
   var totalCount = function totalCount(collection, completeFilterPipelineDetails) {
-    return loadOptions.requireTotalCount || loadOptions.totalSummary ? [getCount(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createCountPipeline(contextOptions)))).then(function (r) {
+    return loadOptions.requireTotalCount || loadOptions.totalSummary ? contextOptions.preferMetadataCount && contextOptions.preProcessingPipeline.length === 0 && completeFilterPipelineDetails.pipeline.length <= 1 ? [collection.count(completeFilterPipelineDetails.pipeline.length === 1 ? completeFilterPipelineDetails.pipeline[0]['$match'] : undefined).then(function (r) {
+      return { totalCount: r };
+    })] : [getCount(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(createCountPipeline(contextOptions)))).then(function (r) {
       return { totalCount: r };
     })] : [];
   };
