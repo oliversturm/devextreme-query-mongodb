@@ -228,6 +228,55 @@ suite('query-values', function () {
       );
     });
 
+    test('query should sort descending by _id', function (tdone) {
+      initClient()
+        .then((client) =>
+          /* eslint-disable promise/always-return, promise/no-nesting */
+          client
+            .db()
+            .dropDatabase()
+            .then(() => {
+              const collection = client.db().collection('testvalues');
+              return Promise.all([
+                collection.insertOne({ val: 1 }),
+                collection.insertOne({ val: 2 }),
+                collection.insertOne({ val: 3 }),
+                collection.insertOne({ val: 4 }),
+                collection.insertOne({ val: 5 }),
+              ])
+                .then(() =>
+                  Promise.all([
+                    query(collection, {
+                      sort: [
+                        {
+                          selector: '_id',
+                          desc: false,
+                        },
+                      ],
+                    }),
+                    query(collection, {
+                      sort: [
+                        {
+                          selector: '_id',
+                          desc: true,
+                        },
+                      ],
+                    }),
+                  ])
+                )
+                .then(([ascRes, descRes]) => {
+                  const clonedDescRes = JSON.parse(JSON.stringify(descRes));
+                  // disgusting: JS reverse method works *in-place*
+                  clonedDescRes.data.reverse();
+                  expect(ascRes.data).to.eql(clonedDescRes.data);
+                });
+            })
+            .then(() => client.close())
+            .then(tdone)
+        )
+        .catch((err) => tdone(err));
+    });
+
     test('list should filter with =', function (tdone) {
       testQueryValues(
         tdone,
