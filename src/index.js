@@ -270,13 +270,25 @@ function createContext(contextOptions, loadOptions) {
 
   const totalCount = (collection, completeFilterPipelineDetails) =>
     loadOptions.requireTotalCount || loadOptions.totalSummary
-      ? [
-          getCount(collection, [
-            ...contextOptions.preProcessingPipeline,
-            ...completeFilterPipelineDetails.pipeline,
-            ...createCountPipeline(contextOptions),
-          ]).then((r) => ({ totalCount: r })),
-        ]
+      ? contextOptions.preferMetadataCount &&
+        contextOptions.preProcessingPipeline.length === 0 &&
+        completeFilterPipelineDetails.pipeline.length <= 1
+        ? [
+            collection
+              .count(
+                completeFilterPipelineDetails.pipeline.length === 1
+                  ? completeFilterPipelineDetails.pipeline[0]['$match']
+                  : undefined
+              )
+              .then((r) => ({ totalCount: r })),
+          ]
+        : [
+            getCount(collection, [
+              ...contextOptions.preProcessingPipeline,
+              ...completeFilterPipelineDetails.pipeline,
+              ...createCountPipeline(contextOptions),
+            ]).then((r) => ({ totalCount: r })),
+          ]
       : [];
 
   const summary = (collection, completeFilterPipelineDetails) => (
