@@ -20,6 +20,10 @@ test:
 	mocha -u tdd $(TESTS) ; \
 	docker stop $$ID
 
+testonly:
+	mocha -u tdd $(TESTS) ; \
+
+
 disttest:
 	npm run prepare
 	ID=`docker run -p=27017:27017 --rm -d mongo:latest`; \
