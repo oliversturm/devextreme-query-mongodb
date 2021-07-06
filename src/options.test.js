@@ -249,6 +249,7 @@ suite('sortOptionsChecker', function () {
       selector: 'thing',
       desc: 42,
     });
+    //console.log('Error (direct from validator): ' + JSON.stringify(result));
     expect(result).to.include({ name: 'ValidationError', type: 'typeError' });
   });
 
@@ -824,6 +825,34 @@ suite('getOptions', function () {
         processingOptions: {},
       }
     );
+  });
+
+  test('sort with correct parameter', function () {
+    testOptions(
+      'sort=[{%22selector%22:%22population%22,%22desc%22:true}]',
+      {
+        errors: [],
+        loadOptions: {
+          sort: [
+            {
+              selector: 'population',
+              desc: true,
+            },
+          ],
+        },
+        processingOptions: {},
+      }
+    );
+  });
+
+  test('sort with incorrect parameter', function () {
+    const queryString = 'sort=[{%22selectorX%22:%22population%22,%22desc%22:true}]';
+    const result = getOptions(qs.parse(queryString));
+
+    expect(result.errors.length).to.eql(1);
+    //console.log(typeof result.errors[0]);
+    //console.log('Error array from getOptions result: ' + JSON.stringify(result.errors));
+    expect(result.errors[0].message).to.be.a('string').and.satisfy(s=> s.startsWith('Sort parameter validation errors:'));
   });
 
   test('issue #10 - filter works when given as array', function () {

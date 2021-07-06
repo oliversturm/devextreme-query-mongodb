@@ -3,6 +3,12 @@ const yup = require('yup');
 
 var regexBool = /(true|false)/i;
 
+function OptionError(message = '') {
+  this.name = 'OptionError';
+  this.message = message;
+}
+OptionError.prototype = Error.prototype;
+
 const asBool = (v) => {
   let match;
   if (typeof v === 'string' && (match = v.match(regexBool))) {
@@ -125,7 +131,7 @@ yup.addMethod(yup.mixed, 'or', function (schemas, msg) {
     message: "Can't find valid schema" || msg,
     test: (value) => {
       if (!Array.isArray(schemas))
-        throw new Error('"or" requires schema array');
+        throw new OptionError('"or" requires schema array');
 
       const results = schemas.map((schema) =>
         schema.isValidSync(value, { strict: true })
@@ -247,6 +253,8 @@ function check(
           errors: options.map((o) => `Invalid '${o}': ${qry[o]}`),
         };
   } catch (err) {
+    //console.log('Error caught in check: ' + JSON.stringify(err));
+    //console.log('Error message in check: ' + err.message);
     return {
       errors: [err],
     };
@@ -304,10 +312,12 @@ function sortOptions(qry) {
           return {
             sort: sortOptions,
           };
-        else
-          throw new Error(
+        else {
+          //console.log('Error string generated in sortOptions: ' + JSON.stringify(vr.errors));
+          throw new OptionError(
             `Sort parameter validation errors: ${JSON.stringify(vr.errors)}`
           );
+        }
       } else return null;
     },
     (sort) => {
@@ -351,7 +361,7 @@ function groupOptions(qry) {
                         groupSummary: gsOptions,
                       };
                     else
-                      throw new Error(
+                      throw new OptionError(
                         `Group summary parameter validation errors: ${JSON.stringify(
                           vr.errors
                         )}`
@@ -361,7 +371,7 @@ function groupOptions(qry) {
               }),
             ]);
           else
-            throw new Error(
+            throw new OptionError(
               `Group parameter validation errors: ${JSON.stringify(vr.errors)}`
             );
         } else return {}; // ignore empty array
@@ -392,7 +402,7 @@ function totalSummaryOptions(qry) {
             totalSummary: tsOptions,
           };
         else
-          throw new Error(
+          throw new OptionError(
             `Total summary parameter validation errors: ${JSON.stringify(
               vr.errors
             )}`
@@ -443,7 +453,7 @@ function selectOptions(qry) {
             select: selectOptions,
           };
         else
-          throw new Error(
+          throw new OptionError(
             `Select array parameter has invalid content: ${JSON.stringify(
               selectOptions
             )}`
