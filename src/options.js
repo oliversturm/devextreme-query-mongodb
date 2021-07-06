@@ -204,7 +204,7 @@ function parse(arg, canBeString = false) {
     try {
       ob = JSON.parse(arg);
     } catch (e) {
-      if (!canBeString) throw e;
+      if (!canBeString) throw new OptionError(e.message);
       return arg;
     }
   }
@@ -568,5 +568,6 @@ module.exports = {
     groupOptionsChecker,
     summaryOptionsChecker,
     asBool,
+    parse
   },
 };

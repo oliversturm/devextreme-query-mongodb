@@ -147,7 +147,7 @@ function parse(arg) {
     try {
       ob = JSON.parse(arg);
     } catch (e) {
-      if (!canBeString) throw e;
+      if (!canBeString) throw new OptionError(e.message);
       return arg;
     }
   }
@@ -414,6 +414,7 @@ module.exports = {
     sortOptionsChecker: sortOptionsChecker,
     groupOptionsChecker: groupOptionsChecker,
     summaryOptionsChecker: summaryOptionsChecker,
-    asBool: asBool
+    asBool: asBool,
+    parse: parse
   }
 };

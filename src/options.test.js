@@ -24,6 +24,7 @@ const {
     groupOptionsChecker,
     summaryOptionsChecker,
     asBool,
+    parse
   },
 } = require('./options');
 
@@ -34,6 +35,28 @@ function testOptions(queryString, expectedResult, schema) {
 
   expect(result).to.eql(expectedResult);
 }
+
+suite('parse', function () {
+  test('parse correctly', function () {
+    const source = { test: 'text', test2: 42 };
+    expect(parse(JSON.stringify(source))).to.eql(source);
+  });
+
+  test('parse error', function () {
+    // For instance: forgotten quote
+    const sourceText = '{"field1":"thing",error:true}';
+    try {
+      parse(sourceText);
+      throw new Error('parse did not throw!');
+    }
+    catch (e) {
+      // We want an error here that produces a proper string
+      // when stringified - so let's test that.
+      // Standard Error just gives {}.
+      expect(JSON.stringify(e)).to.not.eql('{}');
+    }
+  });
+});
 
 suite('asBool', function () {
   test('true', function () {

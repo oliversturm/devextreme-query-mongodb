@@ -22,7 +22,8 @@ var _require = require('./options'),
     sortOptionsChecker = _require$private.sortOptionsChecker,
     groupOptionsChecker = _require$private.groupOptionsChecker,
     summaryOptionsChecker = _require$private.summaryOptionsChecker,
-    asBool = _require$private.asBool;
+    asBool = _require$private.asBool,
+    parse = _require$private.parse;
 
 function testOptions(queryString, expectedResult, schema) {
   var result = getOptions(qs.parse(queryString), schema);
@@ -30,6 +31,23 @@ function testOptions(queryString, expectedResult, schema) {
 
   expect(result).to.eql(expectedResult);
 }
+
+suite('parse', function () {
+  test('parse correctly', function () {
+    var source = { test: 'text', test2: 42 };
+    expect(parse(JSON.stringify(source))).to.eql(source);
+  });
+
+  test('parse error', function () {
+    var sourceText = '{"field1":"thing",error:true}';
+    try {
+      parse(sourceText);
+      throw new Error('parse did not throw!');
+    } catch (e) {
+      expect(JSON.stringify(e)).to.not.eql('{}');
+    }
+  });
+});
 
 suite('asBool', function () {
   test('true', function () {
