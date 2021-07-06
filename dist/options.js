@@ -8,6 +8,14 @@ var yup = require('yup');
 
 var regexBool = /(true|false)/i;
 
+function OptionError() {
+  var message = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : '';
+
+  this.name = 'OptionError';
+  this.message = message;
+}
+OptionError.prototype = Error.prototype;
+
 var asBool = function asBool(v) {
   var match = void 0;
   if (typeof v === 'string' && (match = v.match(regexBool))) {
@@ -88,7 +96,7 @@ yup.addMethod(yup.mixed, 'or', function (schemas, msg) {
     name: 'or',
     message: "Can't find valid schema" || msg,
     test: function test(value) {
-      if (!Array.isArray(schemas)) throw new Error('"or" requires schema array');
+      if (!Array.isArray(schemas)) throw new OptionError('"or" requires schema array');
 
       var results = schemas.map(function (schema) {
         return schema.isValidSync(value, { strict: true });
@@ -231,7 +239,9 @@ function sortOptions(qry) {
       var vr = validateAll(sortOptions, sortOptionsChecker);
       if (vr.valid) return {
         sort: sortOptions
-      };else throw new Error('Sort parameter validation errors: ' + JSON.stringify(vr.errors));
+      };else {
+        throw new OptionError('Sort parameter validation errors: ' + JSON.stringify(vr.errors));
+      }
     } else return null;
   }, function (sort) {
     var sortOptions = parse(sort);
@@ -264,10 +274,10 @@ function groupOptions(qry) {
               var _vr = validateAll(gsOptions, summaryOptionsChecker);
               if (_vr.valid) return {
                 groupSummary: gsOptions
-              };else throw new Error('Group summary parameter validation errors: ' + JSON.stringify(_vr.errors));
+              };else throw new OptionError('Group summary parameter validation errors: ' + JSON.stringify(_vr.errors));
             } else return {};
           } else return null;
-        })]);else throw new Error('Group parameter validation errors: ' + JSON.stringify(vr.errors));
+        })]);else throw new OptionError('Group parameter validation errors: ' + JSON.stringify(vr.errors));
       } else return {};
     } else return null;
   }, function (group) {
@@ -292,7 +302,7 @@ function totalSummaryOptions(qry) {
         var vr = validateAll(tsOptions, summaryOptionsChecker);
         if (vr.valid) return {
           totalSummary: tsOptions
-        };else throw new Error('Total summary parameter validation errors: ' + JSON.stringify(vr.errors));
+        };else throw new OptionError('Total summary parameter validation errors: ' + JSON.stringify(vr.errors));
       } else return {};
     } else return null;
   });
@@ -328,7 +338,7 @@ function selectOptions(qry) {
           return r && typeof v === 'string';
         })) return {
           select: selectOptions
-        };else throw new Error('Select array parameter has invalid content: ' + JSON.stringify(selectOptions));
+        };else throw new OptionError('Select array parameter has invalid content: ' + JSON.stringify(selectOptions));
       } else return {};
     } else return null;
   });

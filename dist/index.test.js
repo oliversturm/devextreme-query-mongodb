@@ -170,6 +170,61 @@ suite('query-values', function () {
       });
     });
 
+    test('list should sort by two fields', function (tdone) {
+      testQueryValues(tdone, {
+        take: 20,
+        sort: [{
+          selector: 'int2',
+          desc: true
+        }, { selector: 'int1', desc: false }]
+      }, function (res) {
+
+        expect(res.data, 'res.data').to.be.instanceof(Array);
+        expect(res.data, 'result').to.have.lengthOf(20);
+        expect(res.data[0].int2).to.eql(4);
+        expect(res.data[1].int2).to.eql(4);
+        expect(res.data[2].int2).to.eql(4);
+        expect(res.data[3].int2).to.eql(4);
+        expect(res.data[4].int2).to.eql(4);
+        expect(res.data[5].int2).to.eql(4);
+        expect(res.data[6].int2).to.eql(4);
+        expect(res.data[7].int2).to.eql(4);
+        expect(res.data[8].int2).to.eql(4);
+        expect(res.data[9].int2).to.eql(4);
+        expect(res.data[10].int2).to.eql(4);
+        expect(res.data[11].int2).to.eql(4);
+        expect(res.data[12].int2).to.eql(4);
+        expect(res.data[13].int2).to.eql(4);
+        expect(res.data[14].int2).to.eql(4);
+        expect(res.data[15].int2).to.eql(4);
+        expect(res.data[16].int2).to.eql(4);
+        expect(res.data[17].int2).to.eql(4);
+        expect(res.data[18].int2).to.eql(4);
+        expect(res.data[19].int2).to.eql(4);
+
+        expect(res.data[0].int1).to.eql(4);
+        expect(res.data[1].int1).to.eql(4);
+        expect(res.data[2].int1).to.eql(4);
+        expect(res.data[3].int1).to.eql(4);
+        expect(res.data[4].int1).to.eql(4);
+        expect(res.data[5].int1).to.eql(4);
+        expect(res.data[6].int1).to.eql(4);
+        expect(res.data[7].int1).to.eql(4);
+        expect(res.data[8].int1).to.eql(4);
+        expect(res.data[9].int1).to.eql(4);
+        expect(res.data[10].int1).to.eql(9);
+        expect(res.data[11].int1).to.eql(9);
+        expect(res.data[12].int1).to.eql(9);
+        expect(res.data[13].int1).to.eql(9);
+        expect(res.data[14].int1).to.eql(9);
+        expect(res.data[15].int1).to.eql(9);
+        expect(res.data[16].int1).to.eql(9);
+        expect(res.data[17].int1).to.eql(9);
+        expect(res.data[18].int1).to.eql(9);
+        expect(res.data[19].int1).to.eql(9);
+      });
+    });
+
     test('list should filter with =', function (tdone) {
       testQueryValues(tdone, {
         filter: ['int1', '=', 3],

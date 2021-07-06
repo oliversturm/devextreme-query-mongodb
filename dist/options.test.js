@@ -244,6 +244,7 @@ suite('sortOptionsChecker', function () {
       selector: 'thing',
       desc: 42
     });
+
     expect(result).to.include({ name: 'ValidationError', type: 'typeError' });
   });
 
@@ -749,6 +750,30 @@ suite('getOptions', function () {
         requireTotalCount: true
       },
       processingOptions: {}
+    });
+  });
+
+  test('sort with correct parameter', function () {
+    testOptions('sort=[{%22selector%22:%22population%22,%22desc%22:true}]', {
+      errors: [],
+      loadOptions: {
+        sort: [{
+          selector: 'population',
+          desc: true
+        }]
+      },
+      processingOptions: {}
+    });
+  });
+
+  test('sort with incorrect parameter', function () {
+    var queryString = 'sort=[{%22selectorX%22:%22population%22,%22desc%22:true}]';
+    var result = getOptions(qs.parse(queryString));
+
+    expect(result.errors.length).to.eql(1);
+
+    expect(result.errors[0].message).to.be.a('string').and.satisfy(function (s) {
+      return s.startsWith('Sort parameter validation errors:');
     });
   });
 
