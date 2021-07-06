@@ -21,8 +21,7 @@ test:
 	docker stop $$ID
 
 testonly:
-	mocha -u tdd $(TESTS) ; \
-
+	mocha -u tdd $(TESTS)
 
 disttest:
 	npm run prepare
@@ -30,6 +29,9 @@ disttest:
 	   sleep 2; \
 	mocha -r babel-polyfill -u tdd $(DISTTESTS) ; \
 	docker stop $$ID
+
+disttestonly:
+	mocha -r babel-polyfill -u tdd $(DISTTESTS)
 
 test-coverage:
 	npm run prepare
