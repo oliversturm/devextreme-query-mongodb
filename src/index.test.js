@@ -237,7 +237,8 @@ suite('query-values', function () {
             {
               selector: 'int2',
               desc: true,
-            },{selector:'int1',desc:false}
+            },
+            { selector: 'int1', desc: false },
           ],
         },
         function (res) {
@@ -245,13 +246,12 @@ suite('query-values', function () {
           // there's 4 and 9 for int1. Sorting ascending on int1,
           // we should start with the 4s and then see the 9s.
 
-          // I guess this is not a perfect sorting test because it 
+          // I guess this is not a perfect sorting test because it
           // doesn't have much variety. But I was testing just now
           // on suspicion that something was severely out of order,
           // and that is apparently not the case.
 
-//          console.log(JSON.stringify(res.data, null, 2));
-            
+          //          console.log(JSON.stringify(res.data, null, 2));
 
           expect(res.data, 'res.data').to.be.instanceof(Array);
           expect(res.data, 'result').to.have.lengthOf(20);
@@ -2207,6 +2207,25 @@ suite('query-values', function () {
         },
         function (collection) {
           return [collection.insertOne({ idField: testId })];
+        }
+      );
+    });
+
+    test('issue #40', function (tdone) {
+      testQueryValues(
+        tdone,
+        {
+          filter: [
+            ['date1', '>=', new Date(2017, 0, 15)],
+            'and',
+            ['date1', '<', new Date(2017, 0, 16)],
+          ],
+          requireTotalCount: true,
+        },
+        function (res) {
+          expect(res.totalCount, 'totalCount').to.eql(1);
+          expect(res.data).to.have.lengthOf(1);
+          expect(new Date(res.data[0].date1)).to.eql(new Date(2017, 0, 15));
         }
       );
     });
