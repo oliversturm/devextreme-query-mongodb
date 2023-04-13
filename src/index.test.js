@@ -647,6 +647,58 @@ suite('query-values', function () {
       );
     });
 
+    test('ids should be strings by default', function (tdone) {
+      testQueryValues(
+        tdone,
+        {
+          requireTotalCount: true,
+        },
+        function (res) {
+          expect(res.totalCount, 'totalCount').to.eql(1);
+
+          expect(res.data, 'res.data').to.be.instanceof(Array);
+          expect(res.data, 'list length').to.have.lengthOf(1);
+          expect(res.data[0]._id, 'id').to.be.a('string');
+        },
+        function (collection) {
+          return [
+            collection.insertOne({
+              data: 42,
+            }),
+          ];
+        },
+        {
+          // replaceIds:true // default is true
+        }
+      );
+    });
+
+    test('ids should not be strings if replaceId=false', function (tdone) {
+      testQueryValues(
+        tdone,
+        {
+          requireTotalCount: true,
+        },
+        function (res) {
+          expect(res.totalCount, 'totalCount').to.eql(1);
+
+          expect(res.data, 'res.data').to.be.instanceof(Array);
+          expect(res.data, 'list length').to.have.lengthOf(1);
+          expect(res.data[0]._id, 'id').to.be.a('object');
+        },
+        function (collection) {
+          return [
+            collection.insertOne({
+              data: 42,
+            }),
+          ];
+        },
+        {
+          replaceIds: false, // default is true
+        }
+      );
+    });
+
     test('list should filter with endswith, no results', function (tdone) {
       testQueryValues(
         tdone,
@@ -753,6 +805,54 @@ suite('query-values', function () {
               expect(item.int1, 'item.int1').to.eql(group.key);
             }
           }
+        }
+      );
+    });
+
+    test('group item id should be type string by default', function (tdone) {
+      testQueryValues(
+        tdone,
+        {
+          group: [
+            {
+              selector: 'int1',
+              desc: false,
+              isExpanded: true,
+            },
+          ],
+          requireTotalCount: true,
+          requireGroupCount: true,
+        },
+        function (res) {
+          expect(res.data[0].items[0]._id, 'group item id').to.be.a('string');
+        },
+        undefined,
+        {
+          // replaceIds: true, // default is true
+        }
+      );
+    });
+
+    test('group item id should not be type string if replaceIds=false', function (tdone) {
+      testQueryValues(
+        tdone,
+        {
+          group: [
+            {
+              selector: 'int1',
+              desc: false,
+              isExpanded: true,
+            },
+          ],
+          requireTotalCount: true,
+          requireGroupCount: true,
+        },
+        function (res) {
+          expect(res.data[0].items[0]._id, 'group item id').to.be.a('object');
+        },
+        undefined,
+        {
+          replaceIds: false, // default is true
         }
       );
     });

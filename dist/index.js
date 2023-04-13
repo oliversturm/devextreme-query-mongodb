@@ -92,7 +92,9 @@ function createContext(contextOptions, loadOptions) {
   var queryGroupData = function queryGroupData(collection, desc, includeDataItems, countSeparately, itemProjection, groupKeyPipeline, sortPipeline, filterPipelineDetails, skipTakePipeline, matchPipeline) {
     return aggregateCall(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(sortPipeline), _toConsumableArray(filterPipelineDetails.pipeline), _toConsumableArray(matchPipeline), _toConsumableArray(createRemoveNestedFieldsPipeline(filterPipelineDetails.nestedFields, contextOptions)), _toConsumableArray(createGroupingPipeline(desc, includeDataItems, countSeparately, groupKeyPipeline, itemProjection, contextOptions)), _toConsumableArray(skipTakePipeline)), 'queryGroupData').toArray().then(function (r) {
       return includeDataItems ? r.map(function (i) {
-        return _extends({}, i, { items: i.items.map(replaceId) });
+        return _extends({}, i, {
+          items: contextOptions.replaceIds ? i.items.map(replaceId) : i.items
+        });
       }) : r;
     });
   };
@@ -202,7 +204,7 @@ function createContext(contextOptions, loadOptions) {
 
     var mainQueryResult = function mainQueryResult() {
       return aggregateCall(collection, [].concat(_toConsumableArray(contextOptions.preProcessingPipeline), _toConsumableArray(completeFilterPipelineDetails.pipeline), _toConsumableArray(sortPipeline), _toConsumableArray(skipTakePipeline), _toConsumableArray(selectPipeline), _toConsumableArray(removeNestedFieldsPipeline)), 'mainQueryResult').toArray().then(function (r) {
-        return r.map(replaceId);
+        return contextOptions.replaceIds ? r.map(replaceId) : r;
       }).then(function (r) {
         return { data: r };
       });

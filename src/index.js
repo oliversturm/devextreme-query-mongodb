@@ -109,7 +109,12 @@ function createContext(contextOptions, loadOptions) {
       .toArray()
       .then((r) =>
         includeDataItems
-          ? r.map((i) => ({ ...i, items: i.items.map(replaceId) }))
+          ? r.map((i) => ({
+              ...i,
+              items: contextOptions.replaceIds
+                ? i.items.map(replaceId)
+                : i.items,
+            }))
           : r
       );
 
@@ -291,24 +296,30 @@ function createContext(contextOptions, loadOptions) {
           ]
       : [];
 
-  const summary = (collection, completeFilterPipelineDetails) => (
-    resultObject
-  ) =>
-    resultObject.totalCount > 0 && loadOptions.totalSummary
-      ? aggregateCall(
-          collection,
-          [
-            ...contextOptions.preProcessingPipeline,
-            ...completeFilterPipelineDetails.pipeline,
-            ...createSummaryPipeline(loadOptions.totalSummary, contextOptions),
-          ],
-          'summary'
-        )
-          .toArray()
-          .then((r) =>
-            populateSummaryResults(resultObject, loadOptions.totalSummary, r[0])
+  const summary =
+    (collection, completeFilterPipelineDetails) => (resultObject) =>
+      resultObject.totalCount > 0 && loadOptions.totalSummary
+        ? aggregateCall(
+            collection,
+            [
+              ...contextOptions.preProcessingPipeline,
+              ...completeFilterPipelineDetails.pipeline,
+              ...createSummaryPipeline(
+                loadOptions.totalSummary,
+                contextOptions
+              ),
+            ],
+            'summary'
           )
-      : Promise.resolve(resultObject);
+            .toArray()
+            .then((r) =>
+              populateSummaryResults(
+                resultObject,
+                loadOptions.totalSummary,
+                r[0]
+              )
+            )
+        : Promise.resolve(resultObject);
 
   const queryGroups = (collection) => {
     const completeFilterPipelineDetails = createCompleteFilterPipeline(
@@ -410,7 +421,7 @@ function createContext(contextOptions, loadOptions) {
         'mainQueryResult'
       )
         .toArray()
-        .then((r) => r.map(replaceId))
+        .then((r) => (contextOptions.replaceIds ? r.map(replaceId) : r))
         .then((r) => ({ data: r }));
 
     return Promise.all([

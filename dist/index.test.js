@@ -513,6 +513,39 @@ suite('query-values', function () {
       }, { caseInsensitiveRegex: false });
     });
 
+    test('ids should be strings by default', function (tdone) {
+      testQueryValues(tdone, {
+        requireTotalCount: true
+      }, function (res) {
+        expect(res.totalCount, 'totalCount').to.eql(1);
+
+        expect(res.data, 'res.data').to.be.instanceof(Array);
+        expect(res.data, 'list length').to.have.lengthOf(1);
+        expect(res.data[0]._id, 'id').to.be.a('string');
+      }, function (collection) {
+        return [collection.insertOne({
+          data: 42
+        })];
+      }, {});
+    });
+
+    test('ids should not be strings if replaceId=false', function (tdone) {
+      testQueryValues(tdone, {
+        requireTotalCount: true
+      }, function (res) {
+        expect(res.totalCount, 'totalCount').to.eql(1);
+
+        expect(res.data, 'res.data').to.be.instanceof(Array);
+        expect(res.data, 'list length').to.have.lengthOf(1);
+        expect(res.data[0]._id, 'id').to.be.a('object');
+      }, function (collection) {
+        return [collection.insertOne({
+          data: 42
+        })];
+      }, {
+        replaceIds: false });
+    });
+
     test('list should filter with endswith, no results', function (tdone) {
       testQueryValues(tdone, {
         filter: ['string', 'endswith', "something that doesn't exist"],
@@ -633,6 +666,35 @@ suite('query-values', function () {
           }
         }
       });
+    });
+
+    test('group item id should be type string by default', function (tdone) {
+      testQueryValues(tdone, {
+        group: [{
+          selector: 'int1',
+          desc: false,
+          isExpanded: true
+        }],
+        requireTotalCount: true,
+        requireGroupCount: true
+      }, function (res) {
+        expect(res.data[0].items[0]._id, 'group item id').to.be.a('string');
+      }, undefined, {});
+    });
+
+    test('group item id should not be type string if replaceIds=false', function (tdone) {
+      testQueryValues(tdone, {
+        group: [{
+          selector: 'int1',
+          desc: false,
+          isExpanded: true
+        }],
+        requireTotalCount: true,
+        requireGroupCount: true
+      }, function (res) {
+        expect(res.data[0].items[0]._id, 'group item id').to.be.a('object');
+      }, undefined, {
+        replaceIds: false });
     });
 
     test('list should group with items and select', function (tdone) {
