@@ -410,7 +410,7 @@ function createContext(contextOptions, loadOptions) {
         'mainQueryResult'
       )
         .toArray()
-        .then((r) => r.map(replaceId))
+        .then((r) => contextOptions.replaceIds ? r.map(replaceId) : r)
         .then((r) => ({ data: r }));
 
     return Promise.all([
