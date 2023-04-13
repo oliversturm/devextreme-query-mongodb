@@ -156,7 +156,7 @@ suite('groupOptionsChecker', function () {
       isExpanded: true,
       groupInterval: 'year'
     });
-    expect(result).to.include({ name: 'ValidationError', type: 'required' });
+    expect(result).to.include({ name: 'ValidationError', type: 'optionality' });
   });
 
   test('invalid desc', function () {
@@ -223,12 +223,12 @@ suite('groupOptionsChecker', function () {
 suite('sortOptionsChecker', function () {
   test('missing desc', function () {
     var result = sortOptionsChecker.validate({ selector: 'thing' });
-    expect(result).to.include({ name: 'ValidationError', type: 'required' });
+    expect(result).to.include({ name: 'ValidationError', type: 'optionality' });
   });
 
   test('missing selector', function () {
     var result = sortOptionsChecker.validate({ desc: true });
-    expect(result).to.include({ name: 'ValidationError', type: 'required' });
+    expect(result).to.include({ name: 'ValidationError', type: 'optionality' });
   });
 
   test('valid', function () {
@@ -862,7 +862,7 @@ suite('getOptions', function () {
     });
   });
 
-  test('sort, filter with date', function () {
+  test('sort, filter with datetime in schema', function () {
     testOptions('sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&filter%5B0%5D%5B0%5D=date2&filter%5B0%5D%5B1%5D=%3D&filter%5B0%5D%5B2%5D=2017-07-13T00%3A00%3A00.000Z', {
       errors: [],
       loadOptions: {

@@ -441,7 +441,7 @@ suite('pipelines', function () {
         ['thing', 'equalsObjectId', '0123456789abcdef01234567'],
         {
           thing: {
-            $eq: ObjectId('0123456789abcdef01234567'),
+            $eq: new ObjectId('0123456789abcdef01234567'),
           },
         },
         ['thing']

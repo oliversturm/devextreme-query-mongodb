@@ -1842,7 +1842,7 @@ suite('query-values', function () {
     });
 
     test('equalsObjectId operator with ObjectId value', function (tdone) {
-      var testId = ObjectId('0123456789abcdef01234567');
+      var testId = new ObjectId('0123456789abcdef01234567');
       testQueryValues(tdone, {
         filter: ['idField', 'equalsObjectId', testId],
         requireTotalCount: true
@@ -1854,7 +1854,7 @@ suite('query-values', function () {
     });
 
     test('equalsObjectId operator with string value', function (tdone) {
-      var testId = ObjectId('0123456789abcdef01234567');
+      var testId = new ObjectId('0123456789abcdef01234567');
       testQueryValues(tdone, {
         filter: ['idField', 'equalsObjectId', testId.toString()],
         requireTotalCount: true
@@ -1862,6 +1862,17 @@ suite('query-values', function () {
         expect(res.totalCount, 'totalCount').to.eql(1);
       }, function (collection) {
         return [collection.insertOne({ idField: testId })];
+      });
+    });
+
+    test('issue #40', function (tdone) {
+      testQueryValues(tdone, {
+        filter: [['date1', '>=', new Date(2017, 0, 15)], 'and', ['date1', '<', new Date(2017, 0, 16)]],
+        requireTotalCount: true
+      }, function (res) {
+        expect(res.totalCount, 'totalCount').to.eql(1);
+        expect(res.data).to.have.lengthOf(1);
+        expect(new Date(res.data[0].date1)).to.eql(new Date(2017, 0, 15));
       });
     });
   });

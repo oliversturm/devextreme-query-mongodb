@@ -165,7 +165,7 @@ suite('groupOptionsChecker', function () {
       isExpanded: true,
       groupInterval: 'year',
     });
-    expect(result).to.include({ name: 'ValidationError', type: 'required' });
+    expect(result).to.include({ name: 'ValidationError', type: 'optionality' });
   });
 
   test('invalid desc', function () {
@@ -232,12 +232,12 @@ suite('groupOptionsChecker', function () {
 suite('sortOptionsChecker', function () {
   test('missing desc', function () {
     const result = sortOptionsChecker.validate({ selector: 'thing' });
-    expect(result).to.include({ name: 'ValidationError', type: 'required' });
+    expect(result).to.include({ name: 'ValidationError', type: 'optionality' });
   });
 
   test('missing selector', function () {
     const result = sortOptionsChecker.validate({ desc: true });
-    expect(result).to.include({ name: 'ValidationError', type: 'required' });
+    expect(result).to.include({ name: 'ValidationError', type: 'optionality' });
   });
 
   test('valid', function () {

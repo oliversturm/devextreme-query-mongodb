@@ -2177,7 +2177,7 @@ suite('query-values', function () {
 
     test('equalsObjectId operator with ObjectId value', function (tdone) {
       // this query also works with the standard '=' operator
-      const testId = ObjectId('0123456789abcdef01234567');
+      const testId = new ObjectId('0123456789abcdef01234567');
       testQueryValues(
         tdone,
         {
@@ -2195,7 +2195,7 @@ suite('query-values', function () {
 
     test('equalsObjectId operator with string value', function (tdone) {
       // this query works only with the equalsObjectId operator
-      const testId = ObjectId('0123456789abcdef01234567');
+      const testId = new ObjectId('0123456789abcdef01234567');
       testQueryValues(
         tdone,
         {

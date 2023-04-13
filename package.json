@@ -32,7 +32,7 @@
     "node": ">=7.3"
   },
   "dependencies": {
-    "yup": "^0.32.9"
+    "yup": "^1.1.0"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
@@ -43,13 +43,13 @@
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "babel-polyfill": "^6.26.0",
     "babel-preset-env": "^1.7.0",
-    "chai": "^4.2.0",
-    "eslint": "^7.12.1",
-    "eslint-plugin-promise": "^4.2.1",
-    "mocha": "^8.2.0",
-    "mongodb": "^3.6.2",
+    "chai": "^4.3.7",
+    "eslint": "^8.38.0",
+    "eslint-plugin-promise": "^6.1.1",
+    "mocha": "^10.2.0",
+    "mongodb": "^5.2.0",
     "nyc": "^15.1.0",
-    "qs": "^6.9.4",
-    "sinon": "^9.2.1"
+    "qs": "^6.11.1",
+    "sinon": "^15.0.3"
   }
 }
