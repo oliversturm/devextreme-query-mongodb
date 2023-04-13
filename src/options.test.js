@@ -24,7 +24,7 @@ const {
     groupOptionsChecker,
     summaryOptionsChecker,
     asBool,
-    parse
+    parse,
   },
 } = require('./options');
 
@@ -48,8 +48,7 @@ suite('parse', function () {
     try {
       parse(sourceText);
       throw new Error('parse did not throw!');
-    }
-    catch (e) {
+    } catch (e) {
       // We want an error here that produces a proper string
       // when stringified - so let's test that.
       // Standard Error just gives {}.
@@ -851,31 +850,31 @@ suite('getOptions', function () {
   });
 
   test('sort with correct parameter', function () {
-    testOptions(
-      'sort=[{%22selector%22:%22population%22,%22desc%22:true}]',
-      {
-        errors: [],
-        loadOptions: {
-          sort: [
-            {
-              selector: 'population',
-              desc: true,
-            },
-          ],
-        },
-        processingOptions: {},
-      }
-    );
+    testOptions('sort=[{%22selector%22:%22population%22,%22desc%22:true}]', {
+      errors: [],
+      loadOptions: {
+        sort: [
+          {
+            selector: 'population',
+            desc: true,
+          },
+        ],
+      },
+      processingOptions: {},
+    });
   });
 
   test('sort with incorrect parameter', function () {
-    const queryString = 'sort=[{%22selectorX%22:%22population%22,%22desc%22:true}]';
+    const queryString =
+      'sort=[{%22selectorX%22:%22population%22,%22desc%22:true}]';
     const result = getOptions(qs.parse(queryString));
 
     expect(result.errors.length).to.eql(1);
     //console.log(typeof result.errors[0]);
     //console.log('Error array from getOptions result: ' + JSON.stringify(result.errors));
-    expect(result.errors[0].message).to.be.a('string').and.satisfy(s=> s.startsWith('Sort parameter validation errors:'));
+    expect(result.errors[0].message)
+      .to.be.a('string')
+      .and.satisfy((s) => s.startsWith('Sort parameter validation errors:'));
   });
 
   test('issue #10 - filter works when given as array', function () {
@@ -984,7 +983,7 @@ suite('getOptions', function () {
     );
   });
 
-  test('sort, filter with date', function () {
+  test('sort, filter with datetime in schema', function () {
     testOptions(
       'sort%5B0%5D%5Bselector%5D=date2&sort%5B0%5D%5Bdesc%5D=false&filter%5B0%5D%5B0%5D=date2&filter%5B0%5D%5B1%5D=%3D&filter%5B0%5D%5B2%5D=2017-07-13T00%3A00%3A00.000Z',
       {
